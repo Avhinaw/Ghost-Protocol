@@ -1,4 +1,4 @@
-# 🛡️ Ghost Protocol — Autonomous Decentralized Dead Man's Switch
+# Ghost Protocol — Autonomous Decentralized Dead Man's Switch
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![EVM Stack](https://img.shields.io/badge/Web3-Solidity%20%7C%20Ethers.js%20%7C%20IPFS-blue)](https://soliditylang.org/)
@@ -26,7 +26,7 @@ If a user goes silent or if external verified events (such as arrests, news aler
 
 ---
 
-## 👁️ Executive Summary & Vision
+## Executive Summary & Vision
 
 Whistleblowers and investigative journalists face severe physical risks when holding damning evidence. **Ghost Protocol** solves this by establishing a decentralized, zero-trust mechanism that guarantees evidence release even if the key-holder is silenced, detained, or physically compromised.
 
@@ -34,7 +34,7 @@ By combining Web3 time-locked smart contracts, client-side AES-256 encryption, a
 
 ---
 
-## 👥 Core User Roles
+## Core User Roles
 
 | Role | Description |
 | :--- | :--- |
@@ -44,7 +44,7 @@ By combining Web3 time-locked smart contracts, client-side AES-256 encryption, a
 
 ---
 
-## ⚙️ Functional Requirements
+## Functional Requirements
 
 ### 1. Client-Side Encryption & IPFS Payload Management
 * **Zero-Knowledge Encryption:** Files are encrypted locally in the user's browser using **AES-256-GCM** before uploading. Plaintext media never touches a server or IPFS node.
@@ -64,7 +64,7 @@ By combining Web3 time-locked smart contracts, client-side AES-256 encryption, a
 
 ---
 
-## 🏗️ System Architecture
+## System Architecture
 
 ```text
 +-------------------------------------------------------------------------+
@@ -90,7 +90,7 @@ Ghost-Protocol/
 ├── package.json                   # Monorepo root scripts
 ├── turbo.json                     # Turborepo task pipeline
 ├── packages/
-│   ├── contracts/                 # 📜 Web3 & Smart Contracts (Hardhat/Solidity)
+│   ├── contracts/                 # Web3 & Smart Contracts (Hardhat/Solidity)
 │   │   ├── contracts/
 │   │   │   └── GhostProtocol.sol
 │   │   ├── scripts/
@@ -98,12 +98,12 @@ Ghost-Protocol/
 │   │   └── test/
 │   │       └── GhostProtocol.test.ts
 │   │
-│   ├── frontend/                  # 💻 Next.js 14 Web Application
+│   ├── frontend/                  # Next.js 14 Web Application
 │   │   ├── src/
 │   │   │   ├── app/               # Routes (dashboard, create, vault view)
 │   │   │   ├── components/        # Web3 UI, Encryption components
 │   │   │   └── lib/               # AES-256 crypto helpers & IPFS SDK
 │   │
-│   └── backend-ai/                # 🤖 AI Engine & Oracle Execution Worker
+│   └── backend-ai/                # AI Engine & Oracle Execution Worker
 │       ├── node-oracle/           # Node.js Cron Worker & Event Watcher
 │       └── python-rag/            # LangChain PDF Verifier & News RAG Engine
