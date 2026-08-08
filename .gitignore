@@ -1,1 +1,60 @@
 readmw2.md
+
+# ==========================================
+# 1. DEPENDENCIES
+# ==========================================
+node_modules/
+.pnpm-store/
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+npm-debug.log*
+
+# ==========================================
+# 2. ENVIRONMENT VARIABLES & SECRETS (CRITICAL)
+# ==========================================
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.pem
+
+# ==========================================
+# 3. BLOCKCHAIN & HARDHAT ARTIFACTS
+# ==========================================
+packages/contracts/artifacts/
+packages/contracts/cache/
+packages/contracts/typechain-types/
+packages/contracts/coverage/
+packages/contracts/coverage.json
+
+# ==========================================
+# 4. FRONTEND (NEXT.JS & BUILD OUTPUTS)
+# ==========================================
+packages/frontend/.next/
+packages/frontend/out/
+packages/frontend/build/
+packages/frontend/dist/
+
+# ==========================================
+# 5. BACKEND & PYTHON (AI MICROSERVICE)
+# ==========================================
+packages/backend-ai/**/__pycache__/
+packages/backend-ai/**/*.py[cod]
+packages/backend-ai/**/.venv/
+packages/backend-ai/**/env/
+packages/backend-ai/**/venv/
+packages/backend-ai/**/*.sqlite3
+packages/backend-ai/**/faiss_index/
+
+# ==========================================
+# 6. TURBOREPO & IDE CACHES
+# ==========================================
+.turbo/
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
