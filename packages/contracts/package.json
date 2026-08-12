@@ -1,21 +1,26 @@
 {
   "name": "contracts",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "private": true,
+  "description": "Ghost Protocol smart contract package",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "node": "hardhat node",
+    "deploy:local": "hardhat run scripts/deploy.ts --network localhost",
+    "local:flow": "hardhat run scripts/local-flow.ts --network localhost",
+    "deploy:sepolia": "hardhat run scripts/deploy.ts --network baseSepolia"
+  },
   "devDependencies": {
-    "@nomicfoundation/hardhat-toolbox": "^7.0.0",
+    "@nomicfoundation/hardhat-ethers": "^4.0.15",
+    "@nomicfoundation/hardhat-mocha": "^3.1.0",
     "@openzeppelin/contracts": "^5.6.1",
+    "chai": "^5.2.0",
     "dotenv": "^17.4.2",
     "hardhat": "^3.12.0",
+    "mocha": "^11.8.0",
     "ts-node": "^10.9.2",
     "typescript": "^7.0.2"
   },
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "type": "module"
 }
