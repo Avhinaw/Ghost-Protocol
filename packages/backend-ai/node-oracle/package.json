@@ -1,0 +1,27 @@
+{
+  "name": "ghost-protocol-node-oracle",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Ghost Protocol blockchain API and local oracle worker",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "local:flow": "tsx scripts/local-flow.ts",
+    "test": "node --import tsx/esm --test test/*.test.ts"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.4.2",
+    "ethers": "^6.15.0",
+    "express": "^5.1.0",
+    "zod": "^4.0.17"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.3.0",
+    "tsx": "^4.20.3",
+    "typescript": "^5.9.2"
+  }
+}
