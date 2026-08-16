@@ -1,0 +1,35 @@
+# Glassmorphism Revision Tasks
+
+- [x] Move primary navigation to a right-side icon rail with hover labels and a mobile-safe fallback.
+- [x] Remove most visible borders and replace them with translucent surfaces, blur, soft shadows, and tonal separation.
+- [x] Replace the current archival hero imagery with a non-graphic threat-context scene that communicates the need for Ghost Protocol.
+- [x] Keep the threat visual editorial and non-graphic: no gore, no blood, no realistic injury detail.
+- [x] Preserve keyboard access, visible focus, readable contrast, and reduced-motion behavior.
+- [x] Re-run TypeScript/build checks and capture representative desktop/mobile screenshots.
+- [x] Generate a tiny, distant, non-graphic two-person threat vignette with a dropped phone and deletion beat.
+- [x] Place the vignette subtly in the existing glassmorphism background without covering interface text or controls.
+- [x] Re-capture the affected viewport and save the revision checkpoint.
+- [x] Add the looping vignette animation: confrontation, brief flash, fall, phone drop, pickup, and erase pulse.
+- [x] Keep the animation small, non-graphic, behind content, and paused/reduced for prefers-reduced-motion.
+- [x] Re-run build checks and verify the animated composition on desktop and mobile.
+- [x] Review the AI engine specification and select the verification output schema.
+- [x] Implement an AI assessment service with confidence, evidence extraction, and human-review requirements.
+- [x] Integrate the assessment response with the oracle as a recommendation gate, never an automatic release decision.
+- [x] Add deterministic tests and a local end-to-end verification flow using synthetic evidence only.
+- [x] Add live multimodal structured-output verification with `gemini-3-flash-preview` and retain mock mode for local tests.
+- [x] Enforce a stored assessment hash, explicit reviewer identity, and reviewer approval before any AI-assisted oracle trigger.
+- [x] Upload a synthetic document to the AI verifier and record its assessment hash.
+- [x] Confirm an unapproved reviewer request is blocked before the contract trigger.
+- [x] Apply explicit manual review, trigger the vault, submit the matching release key, and verify the final `Released` state.
+- [x] Add a protected server-side review proxy so reviewer secrets never reach the browser.
+- [x] Build a Reviewer Console with document upload, AI assessment, explicit approve/reject, and manual release stages.
+- [x] Bind the console to the AI verifier and Node oracle APIs, including meaningful success and failure states.
+- [x] Verify the complete reviewer UI against local synthetic services and document the setup.
+- [x] Configure the reviewer console for localhost-only Node oracle and AI verifier endpoints with development warnings.
+- [x] Add a visible local reviewer reject action and retained rejection state that never calls the oracle.
+- [x] Verify the Reviewer Console’s protected interactive path after sign-in, including upload, reject, approval, and release feedback.
+- [x] Diagnose and repair the reported Reviewer Console preview/sign-in failure.
+- [x] Diagnose and repair the deployed Reviewer Console document-assessment 500 response.
+- [x] Extend the Reviewer Console browser smoke test to submit a matching release key through a local wallet and assert the visible release-success feedback.
+- [x] Document or automate the local browser-wallet setup required for final manual-release verification.
+- [ ] Organize the completed frontend, AI verifier, oracle, and support code into five to six focused commits and push them to GitHub.
