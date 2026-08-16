@@ -9,6 +9,9 @@ const envSchema = z.object({
   ORACLE_SCAN_INTERVAL_MS: z.coerce.number().int().positive().default(6 * 60 * 60 * 1000),
   ORACLE_AUTO_TRIGGER: z.enum(["true", "false"]).default("false").transform((value) => value === "true"),
   CORS_ORIGIN: z.string().default("http://localhost:3000"),
+  AI_VERIFIER_URL: z.string().url().optional(),
+  AI_ASSESSMENT_TTL_MS: z.coerce.number().int().positive().default(15 * 60 * 1000),
+  REVIEWER_APPROVAL_TOKEN: z.string().min(16).optional(),
 });
 
 export type BackendConfig = z.infer<typeof envSchema>;

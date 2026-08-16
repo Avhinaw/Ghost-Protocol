@@ -1,5 +1,7 @@
 import { createServer } from "node:http";
 import { createApp } from "./app.js";
+import { AssessmentRegistry } from "./assessment-registry.js";
+import { HttpAiVerifierClient } from "./ai-verifier.js";
 import { BlockchainService } from "./blockchain-service.js";
 import { loadConfig } from "./config.js";
 import { OracleWorker } from "./oracle-worker.js";
@@ -14,7 +16,9 @@ const service = new BlockchainService(
   config.CONTRACT_ADDRESS,
   config.ORACLE_PRIVATE_KEY,
 );
-const app = createApp(service, config.CORS_ORIGIN);
+const aiVerifier = config.AI_VERIFIER_URL ? new HttpAiVerifierClient(config.AI_VERIFIER_URL) : undefined;
+const assessmentRegistry = new AssessmentRegistry(config.AI_ASSESSMENT_TTL_MS);
+const app = createApp(service, config.CORS_ORIGIN, aiVerifier, assessmentRegistry, config.REVIEWER_APPROVAL_TOKEN);
 const server = createServer(app);
 const worker = config.ORACLE_PRIVATE_KEY
   ? new OracleWorker(
@@ -27,6 +31,8 @@ const worker = config.ORACLE_PRIVATE_KEY
 server.listen(config.PORT, () => {
   console.log(`Ghost Protocol backend listening on http://localhost:${config.PORT}`);
   console.log(`Contract: ${config.CONTRACT_ADDRESS}`);
+  console.log(aiVerifier ? `AI verifier: ${config.AI_VERIFIER_URL}` : "AI verifier disabled");
+  console.log(config.REVIEWER_APPROVAL_TOKEN ? "AI reviewer gate configured" : "AI reviewer gate disabled: REVIEWER_APPROVAL_TOKEN is not configured");
   if (worker) worker.start();
   else console.log("Oracle worker disabled: ORACLE_PRIVATE_KEY is not configured");
 });

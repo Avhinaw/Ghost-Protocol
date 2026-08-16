@@ -106,6 +106,7 @@ export class BlockchainService {
 
   async triggerExpired(vaultId: bigint | number): Promise<TransactionResult> {
     this.requireOracleWallet();
+    this.oracleWallet.reset();
     const transaction = await this.contract.checkAndTriggerExpired(BigInt(vaultId));
     const receipt = await transaction.wait();
     return { hash: transaction.hash, blockNumber: receipt?.blockNumber ?? null };
@@ -116,6 +117,7 @@ export class BlockchainService {
     evidenceHash: string,
   ): Promise<TransactionResult> {
     this.requireOracleWallet();
+    this.oracleWallet.reset();
     const transaction = await this.contract.triggerViaOracle(BigInt(vaultId), evidenceHash);
     const receipt = await transaction.wait();
     return { hash: transaction.hash, blockNumber: receipt?.blockNumber ?? null };

@@ -8,13 +8,17 @@
     "dev": "tsx watch src/server.ts",
     "start": "tsx src/server.ts",
     "local:flow": "tsx scripts/local-flow.ts",
+    "ai:local-flow": "tsx scripts/ai-local-flow.ts",
+    "complete:local-flow": "tsx scripts/complete-release-flow.ts",
     "test": "node --import tsx/esm --test test/*.test.ts"
   },
   "dependencies": {
+    "@types/multer": "^2.2.0",
     "cors": "^2.8.5",
     "dotenv": "^17.4.2",
     "ethers": "^6.15.0",
     "express": "^5.1.0",
+    "multer": "^2.2.0",
     "zod": "^4.0.17"
   },
   "devDependencies": {
