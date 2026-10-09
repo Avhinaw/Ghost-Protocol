@@ -65,25 +65,10 @@ if (!scanResponse.ok || !scanBody.triggered) {
 }
 console.log(`4. Expiration scan relayed ${scanBody.triggered.length} transaction(s)`);
 
-await createVault("two");
-const evidenceHash = keccak256(toUtf8Bytes("backend-local-verified-evidence"));
-const oracleResponse = await fetch(`${baseUrl}/api/v1/oracle/vaults/2/trigger`, {
-  method: "POST",
-  headers: { "content-type": "application/json" },
-  body: JSON.stringify({ evidenceHash }),
-});
-const oracleBody = await oracleResponse.json() as { hash?: string; error?: string };
-if (!oracleResponse.ok || !oracleBody.hash) {
-  throw new Error(`Oracle trigger failed: ${oracleBody.error ?? JSON.stringify(oracleBody)}`);
-}
-console.log(`5. Oracle trigger relayed: ${oracleBody.hash}`);
-
 const vaultOne = await service.getVault(1);
-const vaultTwo = await service.getVault(2);
-console.log(`6. Vault 1 state: ${vaultOne.stateName}`);
-console.log(`7. Vault 2 state: ${vaultTwo.stateName}`);
-if (vaultOne.stateName !== "Triggered" || vaultTwo.stateName !== "Triggered") {
-  throw new Error("Expected both local test vaults to be Triggered");
+console.log(`5. Vault 1 state: ${vaultOne.stateName}`);
+if (vaultOne.stateName !== "Triggered") {
+  throw new Error("Expected the expired local test vault to be Triggered");
 }
 server.close();
-console.log("Backend-to-contract local flow completed successfully.");
+console.log("Backend-to-contract timeout flow completed successfully.");

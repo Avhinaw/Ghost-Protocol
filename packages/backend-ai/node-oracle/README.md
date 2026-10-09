@@ -1,6 +1,6 @@
 # Ghost Protocol Node Oracle Backend
 
-This package is the backend bridge between the future frontend and `GhostProtocol.sol`. It provides read-only vault APIs for the frontend and a guarded oracle relay for timeout and emergency-trigger transactions.
+This package is the backend bridge between the frontend, `GhostProtocol.sol`, and the Python evidence assessor. It provides read-only vault APIs, timeout relaying, and an explicitly reviewed emergency-trigger flow.
 
 ## API endpoints
 
@@ -11,8 +11,9 @@ This package is the backend bridge between the future frontend and `GhostProtoco
 | `GET` | `/api/v1/vaults` | List all vaults with JSON-safe string timestamps and IDs. |
 | `GET` | `/api/v1/vaults/:vaultId` | Read one vault. |
 | `POST` | `/api/v1/oracle/scan` | Find expired active vaults. `{ "execute": true }` also relays timeout triggers. |
-| `POST` | `/api/v1/oracle/vaults/:vaultId/trigger` | Relay a timeout trigger with an empty body, or an emergency oracle trigger with `{ "evidenceHash": "0x..." }`. |
+| `POST` | `/api/v1/oracle/vaults/:vaultId/trigger` | Relay an eligible timeout trigger. Evidence hashes are rejected; emergency triggers must use the reviewed-assessment route. |
 | `POST` | `/api/v1/ai/verify-text` | Store a structured AI assessment. It always requires human review and never allows automatic release. |
+| `POST` | `/api/v1/ai/verify-document` | Submit one document to the Python verifier and store its structured assessment. |
 | `POST` | `/api/v1/oracle/vaults/:vaultId/ai-reviewed-trigger` | Relay an emergency trigger only after a stored assessment, reviewer identity, explicit approval, and server-side reviewer token are validated. |
 
 The frontend should use the user’s wallet to call user-owned contract functions such as `createVault`, `sendHeartbeat`, and `cancelVault`. The backend should not hold user wallet keys and should not expose raw release keys through an HTTP endpoint.
@@ -66,7 +67,7 @@ cd packages/backend-ai/node-oracle
 npm run local:flow
 ```
 
-The script deploys a fresh contract, starts the API in-process, creates a vault from a local user wallet, reads it through the API, advances local time, uses the API to relay the expiration trigger, creates a second vault, uses the API to relay an evidence-based oracle trigger, and confirms both vaults are `Triggered`.
+The script deploys a fresh contract, starts the API in-process, creates a vault from a local user wallet, reads it through the API, advances local time, and uses the API to relay the eligible timeout trigger.
 
 The current worker defaults to `ORACLE_AUTO_TRIGGER=false` so a background scan cannot accidentally send irreversible transactions. Enable automatic timeout relaying only after the contract, oracle wallet, retry policy, and evidence rules have been reviewed.
 
@@ -86,4 +87,4 @@ Set `AI_VERIFIER_URL=http://127.0.0.1:8000` and `REVIEWER_APPROVAL_TOKEN` in the
 REVIEWER_APPROVAL_TOKEN=local-review-token-123456 npm run ai:local-flow
 ```
 
-The script proves that an unapproved trigger is rejected, while an explicit approved review can submit a **synthetic** evidence hash to the local contract. Do not use real documents or the local reviewer token outside development.
+The guarded route validates the stored assessment, its expiry and decision, explicit reviewer identity and approval, and the server-side token. The legacy trigger endpoint rejects evidence-hash requests so it cannot bypass this gate. Do not use real documents or the local reviewer token outside development.

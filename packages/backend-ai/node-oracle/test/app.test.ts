@@ -75,3 +75,42 @@ test("backend rejects malformed oracle input", async (t) => {
   });
   assert.equal(response.status, 400);
 });
+
+test("backend reports invalid vault IDs and oversized uploads as client errors", async (t) => {
+  let emergencyTriggerCalls = 0;
+  const fakeService = {
+    contractAddress: "0x0000000000000000000000000000000000000002",
+    chainId: async () => 31337n,
+    oracleAddress: async () => null,
+    isConfiguredOracle: async () => null,
+    listVaults: async () => [],
+    getVault: async () => sampleVault,
+    scanExpiredVaults: async () => [],
+    triggerViaOracle: async () => { emergencyTriggerCalls += 1; return { txHash: "0x" + "12".repeat(32) }; },
+    triggerExpired: async () => ({ txHash: "0x" + "34".repeat(32) }),
+  };
+  const fakeVerifier = {
+    verifyText: async () => { throw new Error("unused"); },
+    verifyDocument: async () => { throw new Error("oversized file must not reach verifier"); },
+  };
+  const { server, baseUrl } = await listen(createApp(fakeService as any, undefined, fakeVerifier as any));
+  t.after(() => server.close());
+
+  for (const vaultId of ["not-an-id", "0", "000", (1n << 256n).toString()]) {
+    const invalidVaultId = await fetch(`${baseUrl}/api/v1/vaults/${vaultId}`);
+    assert.equal(invalidVaultId.status, 400);
+  }
+
+  const form = new FormData();
+  form.append("file", new Blob([new Uint8Array(8 * 1024 * 1024 + 1)]), "large.txt");
+  const upload = await fetch(`${baseUrl}/api/v1/ai/verify-document`, { method: "POST", body: form });
+  assert.equal(upload.status, 413);
+
+  const unreviewedEmergencyTrigger = await fetch(`${baseUrl}/api/v1/oracle/vaults/1/trigger`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ evidenceHash: "0x" + "ab".repeat(32) }),
+  });
+  assert.equal(unreviewedEmergencyTrigger.status, 403);
+  assert.equal(emergencyTriggerCalls, 0);
+});

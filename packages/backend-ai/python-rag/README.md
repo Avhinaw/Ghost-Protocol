@@ -12,10 +12,10 @@ sudo pip3 install -r requirements.txt
 AI_MODE=mock uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-Run the deterministic tests:
+Run the unit and HTTP API tests:
 
 ```bash
-PYTHONPATH=. python3 -m unittest discover -s test -v
+python -m pytest -q
 ```
 
 To use live structured analysis with synthetic material only:
@@ -24,4 +24,4 @@ To use live structured analysis with synthetic material only:
 AI_MODE=live AI_MODEL=gemini-3-flash-preview uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-`POST /v1/verify-text` accepts a JSON body with `document_text`, `source_name`, and optional `declared_document_type`. `POST /v1/verify-document` accepts a text-based PDF or a UTF-8 text file. Scanned PDFs currently require a transcription or a separate OCR/image pipeline.
+`POST /v1/verify-text` accepts a JSON body with `document_text`, `source_name`, and optional `declared_document_type`. `POST /v1/verify-document` accepts one text-based PDF or a UTF-8 text file up to 8 MiB. Invalid PDF files, non-UTF-8 text, and oversized uploads return client errors. Scanned PDFs currently require a transcription or a separate OCR/image pipeline. This service does not implement news RAG or establish document authenticity.

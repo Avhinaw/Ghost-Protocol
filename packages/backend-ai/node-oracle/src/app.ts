@@ -32,11 +32,17 @@ const upload = multer({
   limits: { fileSize: 8 * 1024 * 1024, files: 1 },
 });
 
+class BadRequestError extends Error {}
+
 function parseVaultId(value: string): bigint {
-  if (!/^\d+$/.test(value) || value === "0") {
-    throw new Error("vaultId must be a positive integer");
+  if (!/^\d+$/.test(value)) {
+    throw new BadRequestError("vaultId must be a positive uint256");
   }
-  return BigInt(value);
+  const vaultId = BigInt(value);
+  if (vaultId === 0n || vaultId > (1n << 256n) - 1n) {
+    throw new BadRequestError("vaultId must be a positive uint256");
+  }
+  return vaultId;
 }
 
 function serializeVault(vault: VaultRecord) {
@@ -221,10 +227,14 @@ export function createApp(
   app.post("/api/v1/oracle/vaults/:vaultId/trigger", async (request, response, next) => {
     try {
       const body = triggerBodySchema.parse(request.body ?? {});
+      if (body.evidenceHash) {
+        response.status(403).json({
+          error: "Emergency triggers require a stored assessment and explicit reviewer approval",
+        });
+        return;
+      }
       const vaultId = parseVaultId(request.params.vaultId);
-      const result = body.evidenceHash
-        ? await service.triggerViaOracle(vaultId, body.evidenceHash)
-        : await service.triggerExpired(vaultId);
+      const result = await service.triggerExpired(vaultId);
       response.status(202).json({ vaultId: vaultId.toString(), ...result });
     } catch (error) {
       next(error);
@@ -237,7 +247,11 @@ export function createApp(
 
   app.use((error: unknown, _request: Request, response: Response, _next: NextFunction) => {
     const message = error instanceof Error ? error.message : "Unexpected error";
-    const status = error instanceof z.ZodError ? 400 : 500;
+    const status = error instanceof z.ZodError || error instanceof BadRequestError
+      ? 400
+      : error instanceof multer.MulterError
+        ? error.code === "LIMIT_FILE_SIZE" ? 413 : 400
+        : 500;
     response.status(status).json({ error: message });
   });
 
