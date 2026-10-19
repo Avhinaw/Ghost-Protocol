@@ -38,11 +38,15 @@ The private key above is a public Hardhat development key. Use it only with the 
 
 ```bash
 cd /home/ubuntu/ghost-protocol-frontend
+export JWT_SECRET=<random-local-session-secret>
+export VITE_BACKEND_URL=http://localhost:4000
 pnpm install
 pnpm dev
 ```
 
-The live preview is already bound to the temporary backend URL used for this test session. For a fully local run, set the backend URL before starting Vite:
+`JWT_SECRET` is required by the local reviewer sign-in and must be kept server-side. For PowerShell, set it before startup with `$env:JWT_SECRET = '<random-local-session-secret>'`; set `VITE_BACKEND_URL` similarly.
+
+For a fully local run, set the backend URL before starting Vite:
 
 ```bash
 export VITE_BACKEND_URL=http://localhost:4000
@@ -77,4 +81,4 @@ For a controlled local expiry test, use the contract package’s integration flo
 
 ## Known prototype boundaries
 
-The frontend is fully wired to the current contract and backend API, but IPFS upload, persistent key custody, and AI evidence verification remain separate next integrations. The UI labels these boundaries explicitly rather than pretending that the testnet prototype is a production release system.
+The frontend is connected to the current contract and backend API, and the reviewer console uses the Python verifier through the Node service. IPFS upload and persistent key custody are not implemented; assessments are stored in memory and require the local prototype reviewer gate. The UI labels these boundaries explicitly rather than presenting the prototype as production-ready.

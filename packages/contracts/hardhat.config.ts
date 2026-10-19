@@ -1,5 +1,4 @@
-import hardhatEthers from "@nomicfoundation/hardhat-ethers";
-import hardhatMocha from "@nomicfoundation/hardhat-mocha";
+﻿import hardhatToolboxMochaEthersPlugin from "@nomicfoundation/hardhat-toolbox-mocha-ethers";
 import { defineConfig } from "hardhat/config";
 import * as dotenv from "dotenv";
 
@@ -7,10 +6,9 @@ dotenv.config({ path: "../../.env" });
 
 const oraclePrivateKey = process.env.ORACLE_PRIVATE_KEY;
 const baseSepoliaRpcUrl = process.env.BASE_SEPOLIA_RPC_URL || "https://sepolia.base.org";
-const basescanApiKey = process.env.BASESCAN_API_KEY || "";
 
 export default defineConfig({
-  plugins: [hardhatEthers, hardhatMocha],
+  plugins: [hardhatToolboxMochaEthersPlugin],
   solidity: {
     version: "0.8.20",
     settings: {
@@ -38,11 +36,6 @@ export default defineConfig({
       chainId: 84532,
       url: baseSepoliaRpcUrl,
       accounts: oraclePrivateKey ? [oraclePrivateKey] : [],
-    },
-  },
-  etherscan: {
-    apiKey: {
-      baseSepolia: basescanApiKey,
     },
   },
   test: {

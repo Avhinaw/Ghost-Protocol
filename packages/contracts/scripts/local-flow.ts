@@ -1,4 +1,4 @@
-import { network } from "hardhat";
+﻿import { network } from "hardhat";
 
 const { ethers } = await network.create();
 
@@ -10,8 +10,7 @@ const payloadHash = ethers.keccak256(ethers.toUtf8Bytes("local-encrypted-payload
 const keyCommitment = ethers.keccak256(releaseKey);
 
 const [deployer, user, oracle] = await ethers.getSigners();
-const factory = await ethers.getContractFactory("GhostProtocol", deployer);
-const contract = await factory.deploy(deployer.address, oracle.address);
+const contract = await ethers.deployContract("GhostProtocol", [deployer.address, oracle.address]);
 await contract.waitForDeployment();
 
 console.log(`1. Deployed: ${await contract.getAddress()}`);

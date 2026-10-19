@@ -106,7 +106,7 @@ npm run deploy:local
 The local deployment address is printed by the script. Use that address later in the frontend environment as:
 
 ```ini
-NEXT_PUBLIC_CONTRACT_ADDRESS=<printed-local-address>
+VITE_CONTRACT_ADDRESS=<printed-local-address>
 ```
 
 The local chain uses chain ID `31337` and RPC URL `http://127.0.0.1:8545`.
@@ -127,6 +127,10 @@ Triggered + correct release key
 Released
 ```
 
-## Next implementation step
+## Remaining work before any production use
 
-The next engineering step is the frontend encryption flow. It must generate the AES key in the browser, encrypt the payload, upload ciphertext only, calculate the payload hash and key commitment, and call `createVault`. Before connecting that frontend to real evidence, the key-release design should be reviewed and upgraded beyond the current local demonstration mechanism.
+The frontend, Node oracle, Python assessment service, and contract now have a synthetic local integration flow. The next critical design item is **key custody and release**: the current contract accepts the release key in a public transaction after triggering, so this prototype does not provide a confidential production release mechanism. Do not deploy it with real evidence.
+
+Other unfinished integrations include encrypted payload upload to IPFS/Arweave, durable encrypted assessment storage, authenticated/auditable reviewer accounts, news retrieval/RAG, scanned-document OCR, oracle transaction retry/idempotency, and production monitoring. These require architecture and threat-model decisions before implementation.
+
+For a local frontend configuration, use `VITE_CONTRACT_ADDRESS` when an explicit address is needed. The frontend reads its API URL from `VITE_BACKEND_URL`; see [docs/ENVIRONMENT_AND_SECRETS.md](./docs/ENVIRONMENT_AND_SECRETS.md).

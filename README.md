@@ -1,12 +1,12 @@
-# Ghost Protocol — Autonomous Decentralized Dead Man's Switch
+# Ghost Protocol — Encrypted Evidence Vault Prototype
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![EVM Stack](https://img.shields.io/badge/Web3-Solidity%20%7C%20Ethers.js%20%7C%20IPFS-blue)](https://soliditylang.org/)
-[![AI Infrastructure](https://img.shields.io/badge/AI-LangChain%20%7C%20OpenAI%20%7C%20FAISS-green)](https://www.langchain.com/)
+[![EVM Stack](https://img.shields.io/badge/Web3-Solidity%20%7C%20Ethers.js-blue)](https://soliditylang.org/)
+[![AI Infrastructure](https://img.shields.io/badge/AI-FastAPI%20%7C%20structured%20review-green)](https://fastapi.tiangolo.com/)
 
-**Ghost Protocol** is an autonomous, decentralized, AI-augmented "Dead Man's Switch". It provides high-risk individuals, whistleblowers, and investigative journalists with a tamper-resistant platform to store encrypted evidence on decentralized storage. 
+**Ghost Protocol** is a prototype for encrypted evidence vaults with heartbeat timeouts and a human-reviewed emergency-trigger flow. It combines a browser frontend, an EVM smart contract, a Node.js oracle API, and a Python document-assessment service.
 
-If a user goes silent or if external verified events (such as arrests, news alerts, or death certificates) are cryptographically validated by an AI/Oracle layer, the platform automatically executes a smart contract to decrypt and publicly broadcast the evidence payload.
+This is not a production safety or evidence-custody system. The AI service only returns a structured recommendation; a valid reviewer approval is required before an AI-assisted oracle trigger. News retrieval, IPFS upload, production key custody, and biometric check-in are not implemented. Use synthetic data and a local chain only.
 
 ---
 
@@ -15,22 +15,20 @@ If a user goes silent or if external verified events (such as arrests, news aler
 - [Core User Roles](#-core-user-roles)
 - [Functional Requirements](#-functional-requirements)
   - [Client-Side Encryption & IPFS Management](#1-client-side-encryption--ipfs-payload-management)
-  - [Smart Contract Engine](#2-smart-contract-engine-Ghost Protocolsol)
-  - [AI Verification & RAG Pipeline](#3-ai-verification--rag-pipeline)
+  - [Smart Contract Engine](#2-smart-contract-engine-ghostprotocolsol)
+  - [AI Document Assessment](#3-ai-document-assessment)
 - [System Architecture](#-system-architecture)
-- [Technical Stack](#-technical-stack)
-- [Non-Functional & Security Requirements](#-non-functional--security-requirements)
 - [Repository Structure](#-repository-structure)
-- [Implementation Milestones](#-implementation-milestones)
-- [Getting Started](#-getting-started)
+- [Local validation](#local-validation)
+- [Prototype boundaries](#prototype-boundaries)
 
 ---
 
 ## Executive Summary & Vision
 
-Whistleblowers and investigative journalists face severe physical risks when holding damning evidence. **Ghost Protocol** solves this by establishing a decentralized, zero-trust mechanism that guarantees evidence release even if the key-holder is silenced, detained, or physically compromised.
+Ghost Protocol explores a blockchain-backed heartbeat and encrypted-vault workflow for users who need a controlled release mechanism for sensitive evidence.
 
-By combining Web3 time-locked smart contracts, client-side AES-256 encryption, and AI-driven news/document verification, Ghost Protocol acts as a cryptographically enforced insurance policy.
+The current repository is a working local prototype, not a guarantee of release, secrecy, or safety. Its local demo uses synthetic content, a temporary in-memory review registry, and a prototype release-key design.
 
 ---
 
@@ -39,28 +37,28 @@ By combining Web3 time-locked smart contracts, client-side AES-256 encryption, a
 | Role | Description |
 | :--- | :--- |
 | **Vault Creator (User)** | Encrypts and uploads evidence payloads, sets heartbeat intervals, and executes periodic check-ins via Web3 wallet. |
-| **Oracle / AI Engine** | Automated off-chain service that monitors news feeds and parses legal documents/certificates to trigger emergency overrides. |
-| **Public / Recipients** | Receives the decryption keys upon vault execution or accesses publicly leaked IPFS CIDs. |
+| **Oracle / AI Engine** | Node service reads vaults and relays permitted actions; Python service produces document assessments. AI does not trigger a vault on its own. |
+| **Public / Recipients** | Can read on-chain vault status. Production payload distribution and key custody are not provided. |
 
 ---
 
 ## Functional Requirements
 
 ### 1. Client-Side Encryption & IPFS Payload Management
-* **Zero-Knowledge Encryption:** Files are encrypted locally in the user's browser using **AES-256-GCM** before uploading. Plaintext media never touches a server or IPFS node.
-* **Decentralized Hosting:** Encrypted binary payloads are pinned to the **IPFS / Arweave** network.
-* **Integrity Hashing:** Computes a `keccak256` payload hash client-side and commits it to the smart contract upon vault creation.
+* **Browser encryption:** The frontend prototype encrypts selected files using **AES-256-GCM** before vault creation.
+* **Storage:** The current create flow uses a `local://` demo CID; IPFS/Arweave upload is not implemented.
+* **Key custody:** Prototype only. Do not store real evidence or rely on this flow for recovery.
 
 ### 2. Smart Contract Engine (`GhostProtocol.sol`)
 * **Time-Lock Logic:** Configurable `checkInInterval` (e.g., 7 days) and `gracePeriod` (e.g., 48 hours).
 * **Heartbeat Mechanism:** A `sendHeartbeat()` function updates `lastHeartbeat = block.timestamp`.
 * **State Machine:** States cycle strictly through: `Active` ➔ `Triggered` ➔ `Released` / `Cancelled`.
-* **Oracle Override:** `triggerViaOracle()` allows an authorized Oracle address (backed by Chainlink/AI) to force key release when external emergency criteria are met.
+* **Oracle Override:** `triggerViaOracle()` allows an authorized oracle to move a vault to `Triggered`; the contract does not evaluate AI or external evidence.
 
-### 3. AI Verification & RAG Pipeline
-* **Document Parsing Engine:** An asynchronous Python service utilizing **LangChain + LLMs** with structured Pydantic outputs to extract and validate official seals and hashes from death certificates, police reports (FIRs), or court orders.
-* **News RAG Search:** A FAISS vector store and scraper monitoring global/local news feeds for context relating to the Vault Creator's identity (e.g., "missing", "detained", "deceased").
-* **Biometric Check-In (Optional):** Liveness detection via webcam during heartbeat submission to prevent coerced check-ins.
+### 3. AI Document Assessment
+* **Document assessment:** Python/FastAPI accepts text or text-based PDFs and returns a structured assessment. Mock mode is deterministic; live mode uses an OpenAI-compatible endpoint.
+* **Human review gate:** Node stores an assessment temporarily and requires explicit reviewer approval before the AI-assisted trigger.
+* **Not implemented:** News RAG, source scraping, OCR, biometric check-in, and identity verification.
 
 ---
 
@@ -68,8 +66,8 @@ By combining Web3 time-locked smart contracts, client-side AES-256 encryption, a
 
 ```text
 +-------------------------------------------------------------------------+
-|                              FRONTEND (Next.js)                         |
-|  1. Encrypt File (AES-256) -> 2. Pin to IPFS -> 3. Commit Vault to Web3 |
+|                               FRONTEND (Vite)                            |
+|       1. Encrypt locally -> 2. Demo CID -> 3. Create vault on Web3       |
 +------------------------------------+------------------------------------+
                                      |
                                      v
@@ -82,28 +80,47 @@ By combining Web3 time-locked smart contracts, client-side AES-256 encryption, a
 +------------------------------------+------------------------------------+
 |                      BACKEND & AI ORACLE SERVICE                        |
 |  - Node.js Cron Service: Checks time-lock expirations                   |
-|  - Python RAG/LLM: Scans News APIs & parses PDF certificate hashes     |
+|  - Python FastAPI: Structured text/PDF assessment                       |
+|  - Human-review gate: Required before AI-assisted oracle trigger         |
 +-------------------------------------------------------------------------+
+```
 
+## Repository Structure
 
+```text
 Ghost-Protocol/
-├── package.json                   # Monorepo root scripts
-├── turbo.json                     # Turborepo task pipeline
 ├── packages/
-│   ├── contracts/                 # Web3 & Smart Contracts (Hardhat/Solidity)
-│   │   ├── contracts/
-│   │   │   └── GhostProtocol.sol
-│   │   ├── scripts/
-│   │   │   └── deploy.ts
-│   │   └── test/
-│   │       └── GhostProtocol.test.ts
-│   │
-│   ├── frontend/                  # Next.js 14 Web Application
-│   │   ├── src/
-│   │   │   ├── app/               # Routes (dashboard, create, vault view)
-│   │   │   ├── components/        # Web3 UI, Encryption components
-│   │   │   └── lib/               # AES-256 crypto helpers & IPFS SDK
-│   │
-│   └── backend-ai/                # AI Engine & Oracle Execution Worker
-│       ├── node-oracle/           # Node.js Cron Worker & Event Watcher
-│       └── python-rag/            # LangChain PDF Verifier & News RAG Engine
+│   ├── contracts/                 # Solidity contract, Hardhat tests and local flow
+│   ├── frontend/                  # Vite/React application, API and reviewer UI
+│   └── backend-ai/
+│       ├── node-oracle/           # Node.js API, oracle relay and assessment gate
+│       └── python-rag/            # FastAPI text/PDF assessment service
+```
+
+## Local validation
+
+Run checks from each package directory:
+
+```bash
+cd packages/contracts
+npm run compile
+npm test
+
+cd ../backend-ai/node-oracle
+npm test
+npx tsc --noEmit
+
+cd ../python-rag
+python -m pytest -q
+
+cd ../../frontend
+pnpm check
+pnpm test
+pnpm build
+```
+
+For the complete local AI-review-to-contract demonstration, follow [AI_INTEGRATION.md](./AI_INTEGRATION.md). It uses synthetic evidence, the local Hardhat chain, and explicit human approval.
+
+## Prototype boundaries
+
+This repository is not ready for real evidence or production deployment. The current workflow has a `local://` payload CID, temporary in-memory assessment storage, a prototype key-release design, no implemented news RAG/OCR, and no production reviewer identity system. Review [BLOCKCHAIN_IMPLEMENTATION.md](./BLOCKCHAIN_IMPLEMENTATION.md) and [docs/ENVIRONMENT_AND_SECRETS.md](./docs/ENVIRONMENT_AND_SECRETS.md) before deployment.

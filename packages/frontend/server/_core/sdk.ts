@@ -170,7 +170,7 @@ class SDKServer {
     return this.signSession(
       {
         openId,
-        appId: ENV.appId,
+        appId: ENV.appId || (!ENV.isProduction && openId === "ghost-local-reviewer" ? "ghost-protocol-local" : ""),
         name: options.name || "",
       },
       options
@@ -274,6 +274,21 @@ class SDKServer {
 
     if (!session) {
       throw ForbiddenError("Invalid session cookie");
+    }
+
+    if (!ENV.isProduction && session.openId === "ghost-local-reviewer") {
+      const now = new Date();
+      return {
+        id: 0,
+        openId: session.openId,
+        name: "Local Test Reviewer",
+        email: null,
+        loginMethod: "local-test",
+        role: "admin",
+        createdAt: now,
+        updatedAt: now,
+        lastSignedIn: now,
+      };
     }
 
     if (session.openId.startsWith(CRON_OPEN_ID_PREFIX)) {

@@ -1,7 +1,6 @@
 import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import * as db from "./db";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { ENV } from "./_core/env";
 import { sdk } from "./_core/sdk";
@@ -31,9 +30,8 @@ export const appRouter = router({
         throw new TRPCError({ code: "NOT_FOUND", message: "Local reviewer mode is unavailable in production." });
       }
 
-      const openId = ENV.ownerOpenId || "ghost-local-reviewer";
+      const openId = "ghost-local-reviewer";
       const name = "Local Test Reviewer";
-      await db.upsertUser({ openId, name, loginMethod: "local-test", role: "admin", lastSignedIn: new Date() });
       const sessionToken = await sdk.createSessionToken(openId, { name, expiresInMs: ONE_YEAR_MS });
       ctx.res.cookie(COOKIE_NAME, sessionToken, { ...getSessionCookieOptions(ctx.req), maxAge: ONE_YEAR_MS });
       return { localOnly: true as const, name };

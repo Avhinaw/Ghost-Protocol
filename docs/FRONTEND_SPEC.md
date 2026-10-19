@@ -1,35 +1,32 @@
-# 💻 Specification 02: Next.js Frontend & WebCrypto Engine
+# Frontend and browser encryption
 
-**Target Sub-Package:** `packages/frontend`  
-**Primary Framework:** Next.js 14 App Router  
+**Target package:** `packages/frontend`
+**Implemented framework:** Vite and React
+**Status:** Local prototype connected to the Ghost Protocol contract and Node API.
 
----
+## Current user flows
 
-## 1. Application Routes
+- Browse the application and view vault status.
+- Connect a browser wallet and create a vault, send a heartbeat, or cancel an active vault.
+- Use the reviewer console to upload synthetic evidence, inspect a structured assessment, explicitly reject or approve it, and request the Node oracle trigger.
+- Retrieve read-only vault/configuration information from the Node service.
 
-| Route Path | View / Purpose |
-| :--- | :--- |
-| `/` | Landing page, protocol overview, features. |
-| `/dashboard` | Active user vaults, timer progress bars, one-click heartbeat triggers. |
-| `/create` | File selection, browser AES-256 encryption, IPFS pinning, Web3 creation transaction. |
-| `/vault/[id]` | Public payload view. Shows vault status and reveals decryption controls if unlocked. |
+The browser signs owner actions with the user's wallet. It does not receive the oracle private key or reviewer token. Oracle operations belong to the backend.
 
----
+## Encryption and storage boundaries
 
-## 2. Client-Side Encryption Protocol (`lib/crypto/index.ts`)
+The create flow encrypts files in the browser using AES-GCM and computes the values needed for vault creation. The current storage integration uses a `local://` demo CID; it does not upload to IPFS or Arweave. The prototype release-key flow is not secure key custody. Do not use real evidence or depend on this for recovery.
 
-Files are encrypted using standard WebCrypto APIs available in modern browsers:
+Before any public deployment, the project needs a reviewed key-release design, real encrypted-payload storage, durable and access-controlled reviewer records, and validated deployment configuration. Scanned-document OCR and production reviewer authentication are also not provided.
 
-1. **Algorithm:** `AES-256-GCM`
-2. **Key Generation:** Generate a random 256-bit symmetric key (`crypto.subtle.generateKey`).
-3. **Initialization Vector (IV):** Generate a random 12-byte IV per file (`crypto.getRandomValues`).
-4. **Binary Processing:** Convert the raw file into an `ArrayBuffer`, encrypt it, and prepend the IV to the ciphertext array before base64/binary encoding for IPFS.
-5. **Key Export:** Export the key as raw bytes / JWK, encrypting it off-chain until the smart contract releases it.
+## Local checks
 
----
+Run from `packages/frontend`:
 
-## 3. Web3 & Wallet Connectivity
+```bash
+pnpm check
+pnpm test
+pnpm build
+```
 
-* **Providers:** Wagmi, Viem, RainbowKit.
-* **Supported Chains:** Localhost Hardhat (31337), Base Sepolia Testnet (84532), Base Mainnet (8453).
-* **State Sync:** TanStack React Query handles real-time updates for `useVault` hooks, polling RPC nodes every 12 seconds.
+See [LOCAL_TESTING.md](../packages/frontend/LOCAL_TESTING.md) and [LOCAL_REVIEWER_CONSOLE.md](../packages/frontend/LOCAL_REVIEWER_CONSOLE.md) for synthetic local workflows.

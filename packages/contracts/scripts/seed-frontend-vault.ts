@@ -1,4 +1,4 @@
-import { network } from "hardhat";
+﻿import { network } from "hardhat";
 
 const { ethers } = await network.create("localhost");
 const contractAddress = process.env.CONTRACT_ADDRESS;
