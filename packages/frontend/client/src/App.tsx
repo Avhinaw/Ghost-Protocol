@@ -1,7 +1,7 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, Route, Switch, useLocation } from "wouter";
 import { Radio } from "lucide-react";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -14,6 +14,7 @@ import { BrandMark } from "./components/BrandMark";
 import { ThreatAnimation } from "./components/ThreatAnimation";
 import { RadialMenu } from "./components/RadialMenu";
 import { LiquidDroplets } from "./components/LiquidDroplets";
+import { LoadingScreen } from "./components/LoadingScreen";
 import { connectWallet } from "./lib/ghost";
 import { toast } from "sonner";
 
@@ -26,4 +27,12 @@ function AppShell({ children }: { children: React.ReactNode }) {
   return <div className="app-shell"><LiquidDroplets /><ThreatAnimation /><main className="workspace"><header className="topbar"><div className="topbar-path"><span className="mono micro copper">GHOST / 01</span><span className="slash">/</span><span>{pageName}</span></div><button className="wallet-button" onClick={handleConnect} disabled={connecting}><span className={wallet ? "status-dot green" : "status-dot"} />{connecting ? "Connecting…" : wallet ? `${wallet.slice(0, 6)}…${wallet.slice(-4)}` : "Connect wallet"}</button></header><div className="workspace-content">{children}</div><footer className="workspace-footer"><span>Ghost Protocol / encrypted evidence infrastructure</span><span className="mono">NOT FOR REAL EVIDENCE · TESTNET ONLY</span></footer></main><aside className="rail rail-right"><Link href="/" className="brand-lockup" aria-label="Ghost Protocol operations home"><BrandMark /><span className="brand-wordmark">GHOST <i>/</i> PROTOCOL</span></Link><RadialMenu /><div className="rail-bottom"><div className="rail-note" title="Local chain ready"><span className="status-dot green" /><span className="rail-label">Local services only</span></div><div className="rail-chain"><Radio size={14} /><span className="rail-label">CHAIN / 31337</span></div></div></aside></div>;
 }
 function Router() { return <Switch><Route path="/" component={Home} /><Route path="/create" component={CreateVault} /><Route path="/review" component={ReviewerConsole} /><Route path="/vault/:id" component={VaultDetail} /><Route path="/404" component={NotFound} /><Route component={NotFound} /></Switch>; }
-export default function App() { return <ErrorBoundary><ThemeProvider defaultTheme="dark"><TooltipProvider><Toaster position="bottom-right" /><AppShell><Router /></AppShell></TooltipProvider></ThemeProvider></ErrorBoundary>; }
+export default function App() {
+  const [booting, setBooting] = useState(true);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setBooting(false), 1100);
+    return () => window.clearTimeout(timer);
+  }, []);
+  if (booting) return <LoadingScreen />;
+  return <ErrorBoundary><ThemeProvider defaultTheme="dark"><TooltipProvider><Toaster position="bottom-right" /><AppShell><Router /></AppShell></TooltipProvider></ThemeProvider></ErrorBoundary>;
+}
