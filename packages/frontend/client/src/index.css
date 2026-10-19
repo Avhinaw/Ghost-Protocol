@@ -347,12 +347,13 @@ a { color: inherit; text-decoration: none; }
 @media (prefers-reduced-motion: reduce) { .liquid-droplet { animation: none; } }
 .panel, .hero-aside, .signal-panel { position: relative; }
 
-/* Space atmosphere: a quiet cool-white heaven glow above a deep red hell glow. */
+/* Atmosphere: one quiet cool glow above one restrained red signal. */
 :root { --heaven: #d9e8ff; --heaven-blue: #75a9f7; --hell: #e05252; }
-.app-shell::before { background-image: radial-gradient(circle at 12% 22%, rgba(217,232,255,0.9) 0 0.7px, transparent 1px), radial-gradient(circle at 28% 72%, rgba(217,232,255,0.65) 0 0.8px, transparent 1.2px), radial-gradient(circle at 47% 14%, rgba(255,255,255,0.68) 0 0.7px, transparent 1px), radial-gradient(circle at 61% 64%, rgba(117,169,247,0.72) 0 0.8px, transparent 1.2px), radial-gradient(circle at 84% 29%, rgba(255,255,255,0.72) 0 0.8px, transparent 1.1px), radial-gradient(circle at 91% 78%, rgba(224,82,82,0.55) 0 0.8px, transparent 1.2px), linear-gradient(180deg, rgba(16,25,40,0.2), rgba(10,14,13,0.82) 48%, rgba(76,16,25,0.44)); background-size: 260px 220px, 330px 280px, 410px 310px, 360px 260px, 300px 240px, 440px 340px, 100% 100%; opacity: 0.9; }
-.app-shell::after { background-image: radial-gradient(ellipse at 50% -14%, rgba(217,232,255,0.22), transparent 38%), radial-gradient(ellipse at 52% 116%, rgba(224,82,82,0.3), transparent 42%), linear-gradient(180deg, rgba(117,169,247,0.06), transparent 35%, rgba(126,32,43,0.16)); opacity: 0.82; mix-blend-mode: screen; }
-.liquid-droplet { background: linear-gradient(145deg, rgba(255,218,218,0.2), rgba(224,82,82,0.16) 44%, rgba(126,32,43,0.13)); box-shadow: inset 10px 10px 22px rgba(255,235,235,0.1), inset -12px -16px 26px rgba(53,8,16,0.16), 0 18px 54px rgba(126,32,43,0.16); }
+.app-shell::before { background: radial-gradient(ellipse at 22% 0%, rgba(117,169,247,0.13), transparent 34%), radial-gradient(ellipse at 78% 100%, rgba(126,32,43,0.2), transparent 38%), #090d0d; opacity: 1; }
+.app-shell::after { background: linear-gradient(180deg, rgba(217,232,255,0.025), transparent 38%, rgba(224,82,82,0.08)); opacity: 1; mix-blend-mode: normal; }
+.liquid-droplet { background: linear-gradient(145deg, rgba(255,218,218,0.14), rgba(224,82,82,0.1) 44%, rgba(126,32,43,0.08)); box-shadow: inset 8px 8px 18px rgba(255,235,235,0.07), inset -10px -14px 20px rgba(53,8,16,0.12), 0 14px 38px rgba(126,32,43,0.1); opacity: 0.22; }
 .workspace-content { position: relative; }
+
 
 .create-page { max-width: 1260px; }
 .create-back { margin-bottom: 28px; }
@@ -440,24 +441,3 @@ a { color: inherit; text-decoration: none; }
 .loading-core-orbit { top: 50%; left: 50%; }
 .loading-core-orbit-one { margin: -125px 0 0 -125px; }
 .loading-core-orbit-two { margin: -90px 0 0 -90px; }
-
-/* Cosmic nebula backdrop: soft color clouds rather than a flat gradient. */
-.cosmic-nebula { position: fixed; z-index: 0; inset: 0; overflow: hidden; pointer-events: none; background: linear-gradient(132deg, rgba(2,4,8,0.7), rgba(12,12,24,0.18) 46%, rgba(33,5,12,0.42)); }
-.nebula-cloud { position: absolute; display: block; border-radius: 50%; filter: blur(42px) saturate(125%); mix-blend-mode: screen; opacity: 0.78; transform-origin: center; }
-.nebula-heaven { top: -16%; left: 6%; width: 54vw; height: 66vh; background: radial-gradient(ellipse at 48% 48%, rgba(221,242,255,0.86) 0 5%, rgba(93,164,255,0.64) 21%, rgba(38,55,166,0.44) 46%, transparent 72%); transform: rotate(-20deg); animation: nebula-breathe-one 18s ease-in-out infinite; }
-.nebula-violet { top: 19%; left: 28%; width: 52vw; height: 48vh; background: radial-gradient(ellipse at center, rgba(159,116,209,0.42), rgba(67,37,112,0.27) 43%, transparent 75%); filter: blur(62px) saturate(140%); opacity: 0.58; transform: rotate(18deg); animation: nebula-breathe-two 24s ease-in-out infinite; }
-.nebula-hell { right: -12%; bottom: -18%; width: 60vw; height: 72vh; background: radial-gradient(ellipse at 48% 46%, rgba(255,221,154,0.82) 0 4%, rgba(255,119,38,0.75) 17%, rgba(205,36,34,0.61) 39%, rgba(91,12,29,0.46) 59%, transparent 77%); transform: rotate(-23deg); animation: nebula-breathe-three 20s ease-in-out infinite; }
-.nebula-ember { right: 12%; bottom: 4%; width: 34vw; height: 40vh; background: radial-gradient(ellipse, rgba(255,181,64,0.54), rgba(224,44,35,0.38) 36%, transparent 72%); filter: blur(30px); opacity: 0.72; transform: rotate(22deg); }
-.nebula-dust { position: absolute; display: block; width: 48vw; height: 16vh; border-radius: 50%; background: linear-gradient(90deg, transparent, rgba(5,5,12,0.64) 16%, rgba(4,4,9,0.82) 53%, transparent 90%); filter: blur(12px); opacity: 0.78; transform: rotate(-28deg); }
-.nebula-dust-one { top: 47%; left: 7%; }
-.nebula-dust-two { right: 4%; bottom: 32%; transform: rotate(23deg); opacity: 0.62; }
-.nebula-star { position: absolute; width: 3px; height: 3px; border-radius: 50%; background: #fff; box-shadow: 0 0 7px 2px rgba(217,232,255,0.85), 0 0 22px 5px rgba(117,169,247,0.4); animation: nebula-star-pulse 4s ease-in-out infinite; }
-.nebula-star::after { content: ""; position: absolute; top: 50%; left: 50%; width: 34px; height: 1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.8), transparent); transform: translate(-50%, -50%); }
-.nebula-star-one { top: 23%; left: 35%; }
-.nebula-star-two { top: 43%; right: 23%; animation-delay: -1.6s; transform: scale(0.72); }
-.nebula-star-three { top: 57%; left: 49%; animation-delay: -2.8s; transform: scale(0.55); }
-@keyframes nebula-breathe-one { 0%, 100% { transform: rotate(-20deg) scale(1); } 50% { transform: rotate(-16deg) scale(1.06) translate(12px, -8px); } }
-@keyframes nebula-breathe-two { 0%, 100% { transform: rotate(18deg) scale(1); } 50% { transform: rotate(24deg) scale(1.08) translate(-12px, 10px); } }
-@keyframes nebula-breathe-three { 0%, 100% { transform: rotate(-23deg) scale(1); } 50% { transform: rotate(-18deg) scale(1.05) translate(-8px, 10px); } }
-@keyframes nebula-star-pulse { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .nebula-cloud, .nebula-star { animation: none; } }
