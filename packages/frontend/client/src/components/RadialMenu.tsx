@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Activity, BookOpen, Plus, ShieldCheck } from "lucide-react";
 import { useLocation } from "wouter";
 
@@ -28,6 +28,22 @@ export function RadialMenu() {
     return index >= 0 ? index : 0;
   }, [location]);
   const [selectedIndex, setSelectedIndex] = useState(currentIndex);
+  const openRef = useRef(open);
+  const selectedIndexRef = useRef(selectedIndex);
+  openRef.current = open;
+  selectedIndexRef.current = selectedIndex;
+
+  const navigate = useCallback((item: RadialItem) => {
+    if (item.href.startsWith("#")) {
+      setOpen(false);
+      if (location !== "/") setLocation("/");
+      window.setTimeout(() => document.querySelector(item.href)?.scrollIntoView({ behavior: "smooth" }), 0);
+      return;
+    }
+    setSelectedIndex(items.indexOf(item));
+    setOpen(false);
+    setLocation(item.href);
+  }, [location, setLocation]);
 
   useEffect(() => setSelectedIndex(currentIndex), [currentIndex]);
 
@@ -37,7 +53,7 @@ export function RadialMenu() {
         setOpen(false);
         return;
       }
-      if (!open) return;
+      if (!openRef.current) return;
       if (event.key === "ArrowRight" || event.key === "ArrowDown") {
         event.preventDefault();
         setSelectedIndex((index) => (index + 1) % items.length);
@@ -48,24 +64,12 @@ export function RadialMenu() {
       }
       if (event.key === "Enter") {
         event.preventDefault();
-        navigate(items[selectedIndex]);
+        navigate(items[selectedIndexRef.current]);
       }
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  });
-
-  function navigate(item: RadialItem) {
-    if (item.href.startsWith("#")) {
-      setOpen(false);
-      if (location !== "/") setLocation("/");
-      window.setTimeout(() => document.querySelector(item.href)?.scrollIntoView({ behavior: "smooth" }), 0);
-      return;
-    }
-    setSelectedIndex(items.indexOf(item));
-    setOpen(false);
-    setLocation(item.href);
-  }
+  }, [navigate]);
 
   return (
     <div className={`radial-menu${open ? " is-open" : ""}`}>
