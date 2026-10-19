@@ -313,3 +313,36 @@ a { color: inherit; text-decoration: none; }
   .rail-right .rail-bottom { display: none; }
   .enter-vault { width: 154px; height: 154px; }
 }
+
+/* Liquid glass revision: red signal accents, reflective surfaces, and restrained droplets. */
+:root {
+  --copper: #e05252;
+  --copper-soft: rgba(224, 82, 82, 0.2);
+  --clay: #d86b68;
+  --liquid-red: #ef4f55;
+  --liquid-red-dark: #7e202b;
+  --glass-white: rgba(244, 240, 232, 0.1);
+}
+.app-shell { background: radial-gradient(circle at 26% 8%, rgba(224,82,82,0.14), transparent 25rem), radial-gradient(circle at 74% 86%, rgba(126,32,43,0.12), transparent 30rem), rgba(11,15,14,0.92); }
+.app-shell::before { background: linear-gradient(125deg, rgba(10,14,13,0.88), rgba(21,26,24,0.66)); }
+.app-shell::after { background-image: radial-gradient(circle at 72% 14%, rgba(239,79,85,0.16), transparent 22rem), linear-gradient(180deg, rgba(21,26,24,0.04), rgba(21,26,24,0.48)); opacity: 0.5; }
+.liquid-droplets { position: fixed; z-index: 0; inset: 0; overflow: hidden; pointer-events: none; }
+.liquid-droplet { position: absolute; display: block; width: 118px; height: 156px; border: 1px solid rgba(239,79,85,0.26); border-radius: 58% 42% 63% 37% / 46% 57% 43% 54%; background: radial-gradient(circle at 30% 20%, rgba(255,188,188,0.42), transparent 9%), radial-gradient(circle at 42% 35%, rgba(239,79,85,0.44), rgba(126,32,43,0.16) 52%, rgba(10,14,13,0.02) 72%); box-shadow: inset 12px 12px 20px rgba(255,222,222,0.09), inset -15px -22px 28px rgba(53,8,16,0.18), 0 16px 58px rgba(126,32,43,0.14); filter: blur(0.1px); opacity: 0.42; transform: rotate(22deg); }
+.liquid-droplet::before { content: ""; position: absolute; top: 18%; left: 23%; width: 25%; height: 13%; border-radius: 50%; background: rgba(255,244,244,0.58); filter: blur(3px); transform: rotate(-25deg); }
+.liquid-droplet-a { left: 8%; top: 16%; transform: rotate(24deg) scale(0.72); animation: droplet-drift-a 18s ease-in-out infinite; }
+.liquid-droplet-b { right: 16%; top: 19%; transform: rotate(-18deg) scale(1.15); opacity: 0.28; animation: droplet-drift-b 22s ease-in-out infinite; }
+.liquid-droplet-c { left: 39%; bottom: -45px; transform: rotate(6deg) scale(0.56); opacity: 0.2; animation: droplet-drift-c 20s ease-in-out infinite; }
+.liquid-droplet-d { right: 34%; bottom: 18%; transform: rotate(38deg) scale(0.42); opacity: 0.22; animation: droplet-drift-a 24s ease-in-out infinite reverse; }
+.liquid-droplet-e { right: -30px; bottom: 8%; transform: rotate(-25deg) scale(0.86); opacity: 0.25; animation: droplet-drift-b 19s ease-in-out infinite reverse; }
+@keyframes droplet-drift-a { 0%, 100% { margin-top: 0; } 50% { margin-top: -18px; } }
+@keyframes droplet-drift-b { 0%, 100% { margin-left: 0; } 50% { margin-left: 20px; } }
+@keyframes droplet-drift-c { 0%, 100% { transform: rotate(6deg) scale(0.56); } 50% { transform: rotate(12deg) scale(0.62); } }
+.workspace, .rail { background: rgba(12,17,15,0.28); backdrop-filter: blur(24px) saturate(135%); -webkit-backdrop-filter: blur(24px) saturate(135%); }
+.panel, .hero-aside, .signal-panel, .radial-menu-orbit { border: 1px solid rgba(255,255,255,0.12); background: linear-gradient(135deg, rgba(244,240,232,0.1), rgba(244,240,232,0.035) 48%, rgba(224,82,82,0.05)); box-shadow: 0 28px 80px rgba(0,0,0,0.26), inset 0 1px 0 rgba(255,255,255,0.18), inset 0 -1px 0 rgba(224,82,82,0.1); backdrop-filter: blur(28px) saturate(150%); -webkit-backdrop-filter: blur(28px) saturate(150%); }
+.panel-header { background: linear-gradient(90deg, rgba(255,255,255,0.07), rgba(224,82,82,0.045), transparent); }
+.hero-aside::after, .panel::after, .signal-panel::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(118deg, rgba(255,255,255,0.12), transparent 23%, transparent 76%, rgba(224,82,82,0.05)); opacity: 0.45; }
+.hero-aside, .panel, .signal-panel { isolation: isolate; }
+.enter-vault, .radial-menu-toggle { background: linear-gradient(145deg, rgba(224,82,82,0.2), rgba(13,18,16,0.86) 46%, rgba(126,32,43,0.18)); border-color: rgba(239,79,85,0.46); box-shadow: 0 22px 60px rgba(0,0,0,0.34), inset 0 1px 0 rgba(255,255,255,0.2), inset 0 -18px 30px rgba(126,32,43,0.14); }
+.enter-vault-ring-inner, .radial-menu-toggle-ring { border-color: rgba(239,79,85,0.82); }
+@media (prefers-reduced-motion: reduce) { .liquid-droplet { animation: none; } }
+.panel, .hero-aside, .signal-panel { position: relative; }
