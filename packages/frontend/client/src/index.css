@@ -468,3 +468,18 @@ a { color: inherit; text-decoration: none; }
   .radial-menu-toggle { width: 82px; height: 82px; }
   .radial-menu-current { bottom: -19px; }
 }
+
+/* Overflow guard: preserve vertical scrolling while preventing any horizontal page drift. */
+html, body, #root { width: 100%; max-width: 100%; overflow-x: hidden; }
+.app-shell { width: 100%; max-width: 100%; overflow-x: clip; }
+.workspace { min-width: 0; max-width: 100%; overflow-x: clip; }
+.workspace-content { min-width: 0; max-width: 100%; overflow-x: clip; }
+.vault-row, .rule-row, .create-layout, .create-heading, .create-submit { min-width: 0; }
+.vault-row > *, .rule-row > *, .create-preview-copy, .create-drop-content { min-width: 0; }
+.vault-owner, .vault-cid, .rule-row dd, .create-drop-content strong, .create-preview-copy span { overflow-wrap: anywhere; word-break: break-word; }
+@media (max-width: 720px) {
+  .topbar, .workspace-footer { min-width: 0; max-width: 100%; }
+  .topbar-path { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .wallet-button { flex: 0 1 auto; min-width: 0; max-width: 52vw; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .create-heading .detail-title { overflow-wrap: anywhere; }
+}
