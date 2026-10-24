@@ -106,7 +106,6 @@ export function RadialMenu() {
         <span className="radial-menu-toggle-label">{open ? "Close" : "Menu"}</span>
         <span className="radial-menu-toggle-key" aria-hidden="true">{open ? "ESC" : "TAB"}</span>
       </button>
-      <span className="radial-menu-current" aria-live="polite">{items[selectedIndex]?.label}</span>
     </div>
   );
 }
