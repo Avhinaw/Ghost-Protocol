@@ -16,9 +16,11 @@ export default function Home() {
     <section className="hero-layout">
       <div className="hero-copy">
         <div className="eyebrow">Operational ledger / 2026</div>
-        <h1 className="display">A vault is only as strong as its last heartbeat.</h1>
+        <div className="hero-heading-row">
+          <h1 className="display">A vault is only as strong as its last heartbeat.</h1>
+          <EnterVaultButton />
+        </div>
         <p>Ghost Protocol gives sensitive evidence a verifiable release path. Encrypt locally, commit the custody record, and keep the deadline visible.</p>
-        <EnterVaultButton />
         <div className="stat-strip"><div className="stat-item"><span className="stat-value">{active}</span><span className="stat-label micro">Active vaults</span></div><div className="stat-item"><span className="stat-value">{triggered}</span><span className="stat-label micro">Awaiting release</span></div><div className="stat-item"><span className="stat-value">{released}</span><span className="stat-label micro">Released records</span></div></div>
       </div>
       <div className="hero-aside" aria-label="Threat context"><div className="hero-aside-mark">03</div><div className="threat-copy"><span className="micro copper">Threat context</span><strong>When the person disappears, the record should not.</strong><p>Ghost Protocol protects against coercion, sudden loss, and the quiet deletion of evidence.</p></div><div className="threat-stamp"><span className="status-dot copper" /> DATA / PRESERVED</div></div>
