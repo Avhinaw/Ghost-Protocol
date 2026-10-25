@@ -16,7 +16,7 @@ import { LoadingScreen } from "./components/LoadingScreen";
 import { connectWallet } from "./lib/ghost";
 import { toast } from "sonner";
 
-function AppShell({ children }: { children: React.ReactNode }) {
+function AppShell() {
   const [location] = useLocation();
   const [wallet, setWallet] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
@@ -36,15 +36,14 @@ function AppShell({ children }: { children: React.ReactNode }) {
 
   return <div className="app-shell">
     <main className="workspace">
-      <header className="topbar">
-        <div className="topbar-path"><span className="mono micro copper">GHOST / 01</span><span className="slash">/</span><span>{pageName}</span></div>
-        <button className="wallet-button" onClick={handleConnect} disabled={connecting}>
+      <header className={`topbar topbar-wallet${location === "/" ? " topbar-wallet-home" : ""}`}>
+        <button className="wallet-button wallet-button-mobile" onClick={handleConnect} disabled={connecting}>
           <span className={wallet ? "status-dot green" : "status-dot"} />
           {connecting ? "Connecting…" : wallet ? `${wallet.slice(0, 6)}…${wallet.slice(-4)}` : "Connect wallet"}
           <ArrowUpRight size={14} />
         </button>
       </header>
-      <div className="workspace-content">{children}</div>
+      <div className={`workspace-content${location === "/" ? " workspace-content-home" : ""}`}><Router wallet={wallet} connecting={connecting} onConnect={handleConnect} /></div>
       <footer className="workspace-footer">
         <span>Ghost Protocol <i>/</i> encrypted evidence infrastructure</span>
         <span className="mono">PROTOTYPE / TESTNET ONLY · USE SYNTHETIC MATERIAL</span>
@@ -53,6 +52,13 @@ function AppShell({ children }: { children: React.ReactNode }) {
     <aside className="rail rail-right">
       <Link href="/" className="brand-lockup" aria-label="Ghost Protocol operations home"><BrandMark /></Link>
       <RadialMenu />
+      <div className="rail-wallet">
+        <button className="wallet-button wallet-button-sidebar" onClick={handleConnect} disabled={connecting}>
+          <span className={wallet ? "status-dot green" : "status-dot"} />
+          <span>{connecting ? "Connecting…" : wallet ? `${wallet.slice(0, 6)}…${wallet.slice(-4)}` : "Connect wallet"}</span>
+          <ArrowUpRight size={14} />
+        </button>
+      </div>
       <div className="rail-bottom">
         <div className="rail-note" title="Local chain ready"><span className="status-dot green" /><span className="rail-label">Local services only</span></div>
         <div className="rail-chain"><Radio size={14} /><span className="rail-label">CHAIN / 31337</span></div>
@@ -60,7 +66,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
     </aside>
   </div>;
 }
-function Router() { return <Switch><Route path="/" component={Home} /><Route path="/create" component={CreateVault} /><Route path="/review" component={ReviewerConsole} /><Route path="/vault/:id" component={VaultDetail} /><Route path="/404" component={NotFound} /><Route component={NotFound} /></Switch>; }
+function Router({ wallet, connecting, onConnect }: { wallet: string | null; connecting: boolean; onConnect: () => void }) { return <Switch><Route path="/" component={() => <Home wallet={wallet} connecting={connecting} onConnect={onConnect} />} /><Route path="/create" component={CreateVault} /><Route path="/review" component={ReviewerConsole} /><Route path="/vault/:id" component={VaultDetail} /><Route path="/404" component={NotFound} /><Route component={NotFound} /></Switch>; }
 export default function App() {
   const [booting, setBooting] = useState(true);
   useEffect(() => {
@@ -68,5 +74,5 @@ export default function App() {
     return () => window.clearTimeout(timer);
   }, []);
   if (booting) return <LoadingScreen />;
-  return <ErrorBoundary><ThemeProvider defaultTheme="dark"><TooltipProvider><Toaster position="bottom-right" /><AppShell><Router /></AppShell></TooltipProvider></ThemeProvider></ErrorBoundary>;
+  return <ErrorBoundary><ThemeProvider defaultTheme="dark"><TooltipProvider><Toaster position="bottom-right" /><AppShell /></TooltipProvider></ThemeProvider></ErrorBoundary>;
 }

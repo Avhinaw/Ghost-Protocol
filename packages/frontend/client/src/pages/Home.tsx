@@ -47,7 +47,13 @@ const features = [
   },
 ];
 
-export default function Home() {
+interface HomeProps {
+  wallet: string | null;
+  connecting: boolean;
+  onConnect: () => void;
+}
+
+export default function Home({ wallet, connecting, onConnect }: HomeProps) {
   const { vaults, config, loading, error, refresh } = useGhostData();
   const prefersReducedMotion = useReducedMotion();
   const heroRef = useRef<HTMLElement>(null);
@@ -126,6 +132,11 @@ export default function Home() {
           }}
           onPointerLeave={() => setCursorVisible(false)}
         >
+          <button className="wallet-button hero-wallet" onClick={onConnect} disabled={connecting}>
+            <span className={wallet ? "status-dot green" : "status-dot"} />
+            {connecting ? "Connecting…" : wallet ? shortAddress(wallet) : "Connect wallet"}
+            <ArrowUpRight size={14} />
+          </button>
           <div className="hero-visual">
             <motion.div className="hero-video-motion" style={{ scale: prefersReducedMotion ? 1 : videoScale, y: prefersReducedMotion ? 0 : videoY, clipPath: prefersReducedMotion ? "none" : videoClip }}>
               <video
