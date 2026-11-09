@@ -14,7 +14,7 @@ import {
   UsersRound,
 } from "lucide-react";
 import { motion, useMotionValue, useReducedMotion, useScroll, useSpring, useTransform } from "framer-motion";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useGhostData } from "../hooks/useGhostData";
 
 function shortAddress(value: string) { return `${value.slice(0, 6)}…${value.slice(-4)}`; }
@@ -57,15 +57,30 @@ export default function Home({ wallet, connecting, onConnect }: HomeProps) {
   const { vaults, config, loading, error, refresh } = useGhostData();
   const prefersReducedMotion = useReducedMotion();
   const heroRef = useRef<HTMLElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
   const cursorX = useSpring(-100, { stiffness: 260, damping: 28, mass: 0.35 });
   const cursorY = useSpring(-100, { stiffness: 260, damping: 28, mass: 0.35 });
   const ctaX = useSpring(useMotionValue(0), { stiffness: 220, damping: 18, mass: 0.35 });
   const ctaY = useSpring(useMotionValue(0), { stiffness: 220, damping: 18, mass: 0.35 });
+  const videoRotateX = useSpring(useMotionValue(0), { stiffness: 120, damping: 24, mass: 0.6 });
+  const videoRotateY = useSpring(useMotionValue(0), { stiffness: 120, damping: 24, mass: 0.6 });
   const [cursorVisible, setCursorVisible] = useState(false);
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end end"] });
-  const videoScale = useTransform(scrollYProgress, [0, 0.38, 1], [1.3, 1.14, 1.06]);
+  const videoScale = useTransform(scrollYProgress, [0, 0.38, 1], [0.48, 1, 1.06]);
   const videoY = useTransform(scrollYProgress, [0, 1], [0, -18]);
+  const heroExitProgress = useSpring(useTransform(scrollYProgress, [0.9, 1], [0, 1]), { stiffness: 55, damping: 28, mass: 1 });
+  const heroExitY = useTransform(heroExitProgress, [0, 1], ["0vh", "-110vh"]);
+  const heroExitScale = useTransform(heroExitProgress, [0, 1], [1, 0.68]);
+  const heroExitRotateX = useTransform(heroExitProgress, [0, 1], [0, 32]);
+  const heroExitRotateZ = useTransform(heroExitProgress, [0, 1], [0, -4]);
+  const heroExitOpacity = useTransform(heroExitProgress, [0.55, 1], [1, 0]);
+  const heroExitClip = useTransform(
+    heroExitProgress,
+    [0, 1],
+    [
+      "polygon(0 0, 100% 0, 100% 100%, 0 100%, 0 0, 0 0, 0 0, 0 0)",
+      "polygon(12% 0, 88% 0, 100% 22%, 100% 100%, 88% 100%, 12% 100%, 0 78%, 0 22%)",
+    ],
+  );
   const videoClip = useTransform(
     scrollYProgress,
     [0, 0.38, 1],
@@ -75,6 +90,7 @@ export default function Home({ wallet, connecting, onConnect }: HomeProps) {
       "polygon(0 0, 100% 0, 100% 0, 100% 100%, 100% 100%, 0 100%, 0 100%, 0 0)",
     ],
   );
+  const videoGeometryOpacity = useTransform(scrollYProgress, [0, 0.24, 0.38], [1, 0.8, 0]);
   const leftFacetX = useTransform(scrollYProgress, [0, 0.2, 0.38], ["0%", "0%", "-110%"]);
   const rightFacetX = useTransform(scrollYProgress, [0, 0.2, 0.38], ["0%", "0%", "110%"]);
   const chapterOneOpacity = useTransform(scrollYProgress, [0.18, 0.26, 0.45, 0.51], [0, 1, 1, 0]);
@@ -84,34 +100,6 @@ export default function Home({ wallet, connecting, onConnect }: HomeProps) {
   const chapterTwoY = useTransform(scrollYProgress, [0.44, 0.52], [24, 0]);
   const chapterThreeY = useTransform(scrollYProgress, [0.68, 0.77], [24, 0]);
   const introOpacity = useTransform(scrollYProgress, [0.16, 0.26, 0.36], [1, 0.65, 0]);
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-    if (prefersReducedMotion) {
-      video.pause();
-      video.currentTime = 0;
-      return;
-    }
-    video.pause();
-    let frame = 0;
-    const seekToScroll = () => {
-      frame = 0;
-      if (!Number.isFinite(video.duration) || video.duration <= 0) return;
-      const targetTime = Math.min(0.01 + scrollYProgress.get() * video.duration, video.duration - 0.01);
-      if (Math.abs(video.currentTime - targetTime) > 0.01) video.currentTime = targetTime;
-    };
-    const scheduleSeek = () => {
-      if (!frame) frame = requestAnimationFrame(seekToScroll);
-    };
-    const unsubscribe = scrollYProgress.on("change", scheduleSeek);
-    video.addEventListener("loadedmetadata", scheduleSeek);
-    scheduleSeek();
-    return () => {
-      unsubscribe();
-      video.removeEventListener("loadedmetadata", scheduleSeek);
-      if (frame) cancelAnimationFrame(frame);
-    };
-  }, [prefersReducedMotion, scrollYProgress]);
   const active = vaults.filter((vault) => vault.stateName === "Active").length;
   const triggered = vaults.filter((vault) => vault.stateName === "Triggered").length;
   const released = vaults.filter((vault) => vault.stateName === "Released").length;
@@ -127,28 +115,66 @@ export default function Home({ wallet, connecting, onConnect }: HomeProps) {
             setCursorVisible(true);
             const rect = event.currentTarget.getBoundingClientRect();
             const visual = event.currentTarget.querySelector<HTMLElement>(".hero-visual");
+            if (visual) {
+              const visualRect = visual.getBoundingClientRect();
+              const pointerX = Math.max(-0.5, Math.min(0.5, (event.clientX - visualRect.left) / visualRect.width - 0.5));
+              const pointerY = Math.max(-0.5, Math.min(0.5, (event.clientY - visualRect.top) / visualRect.height - 0.5));
+              videoRotateX.set(pointerY * -8);
+              videoRotateY.set(pointerX * 10);
+            }
             visual?.style.setProperty("--pointer-x", `${event.clientX - rect.left}px`);
             visual?.style.setProperty("--pointer-y", `${event.clientY - rect.top}px`);
           }}
-          onPointerLeave={() => setCursorVisible(false)}
+          onPointerLeave={() => {
+            setCursorVisible(false);
+            videoRotateX.set(0);
+            videoRotateY.set(0);
+          }}
         >
           <button className="wallet-button hero-wallet" onClick={onConnect} disabled={connecting}>
             <span className={wallet ? "status-dot green" : "status-dot"} />
             {connecting ? "Connecting…" : wallet ? shortAddress(wallet) : "Connect wallet"}
             <ArrowUpRight size={14} />
           </button>
-          <div className="hero-visual">
-            <motion.div className="hero-video-motion" style={{ scale: prefersReducedMotion ? 1 : videoScale, y: prefersReducedMotion ? 0 : videoY, clipPath: prefersReducedMotion ? "none" : videoClip }}>
+          <motion.div
+            className="hero-visual"
+            style={{
+              y: prefersReducedMotion ? 0 : heroExitY,
+              scale: prefersReducedMotion ? 1 : heroExitScale,
+              rotateX: prefersReducedMotion ? 0 : heroExitRotateX,
+              rotateZ: prefersReducedMotion ? 0 : heroExitRotateZ,
+              opacity: prefersReducedMotion ? 1 : heroExitOpacity,
+              clipPath: prefersReducedMotion ? "none" : heroExitClip,
+            }}
+          >
+            <motion.div className="hero-video-motion" style={{ scale: prefersReducedMotion ? 1 : videoScale, y: prefersReducedMotion ? 0 : videoY, rotateX: prefersReducedMotion ? 0 : videoRotateX, rotateY: prefersReducedMotion ? 0 : videoRotateY, clipPath: prefersReducedMotion ? "none" : videoClip }}>
               <video
-                ref={videoRef}
                 className="hero-video"
                 src="/gostProtocoloHero.mp4"
                 poster="/gostProtocoloHero-poster.jpg"
                 muted
                 playsInline
+                autoPlay={!prefersReducedMotion}
+                loop
                 preload="auto"
                 aria-label="Ghost Protocol video story: preserve, check in, and release"
               />
+              <motion.svg
+                className="hero-video-geometry"
+                viewBox="0 0 1000 1000"
+                preserveAspectRatio="none"
+                aria-hidden="true"
+                style={{ opacity: prefersReducedMotion ? 0 : videoGeometryOpacity }}
+              >
+                <polygon className="hero-video-geometry-fill" points="170,80 500,80 330,330" />
+                <polygon className="hero-video-geometry-fill" points="830,80 670,330 500,80" />
+                <polygon className="hero-video-geometry-fill" points="170,920 330,670 500,920" />
+                <polygon className="hero-video-geometry-fill" points="830,920 500,920 670,670" />
+                <polygon className="hero-video-geometry-outline" points="170,80 830,80 920,180 920,820 830,920 170,920 80,820 80,180" />
+                <polygon className="hero-video-geometry-outline hero-video-geometry-inner" points="500,245 755,500 500,755 245,500" />
+                <path className="hero-video-geometry-line" d="M170 80 500 245 830 80 M920 180 755 500 920 820 M830 920 500 755 170 920 M80 820 245 500 80 180" />
+                <path className="hero-video-geometry-line" d="M500 80 500 245 M920 500 755 500 M500 920 500 755 M80 500 245 500" />
+              </motion.svg>
             </motion.div>
             <div className="hero-video-shade" aria-hidden="true" />
             {!prefersReducedMotion && (
@@ -158,12 +184,10 @@ export default function Home({ wallet, connecting, onConnect }: HomeProps) {
               </div>
             )}
             <motion.div className="hero-copy" style={{ opacity: prefersReducedMotion ? 1 : introOpacity }}>
-              <div className="eyebrow"><span className="eyebrow-pulse" /> DIGITAL LEGACY INFRASTRUCTURE</div>
               <h1 className="hero-display">
                 <motion.span initial={prefersReducedMotion ? false : { opacity: 0, y: 42, rotateX: -35 }} animate={{ opacity: 1, y: 0, rotateX: 0 }} transition={{ duration: 0.9, delay: 0.12, ease: [0.23, 1, 0.32, 1] }}>What</motion.span>
                 <motion.span initial={prefersReducedMotion ? false : { opacity: 0, y: 42, rotateX: -35 }} animate={{ opacity: 1, y: 0, rotateX: 0 }} transition={{ duration: 0.9, delay: 0.24, ease: [0.23, 1, 0.32, 1] }}>matters</motion.span>
               </h1>
-              <p>Encrypted evidence. Verifiable check-ins. A deliberate path to release when you can no longer be there.</p>
               <div className="hero-actions">
                 <motion.div className="hero-magnetic-wrap" style={{ x: ctaX, y: ctaY }}>
                   <Link
@@ -182,7 +206,6 @@ export default function Home({ wallet, connecting, onConnect }: HomeProps) {
                   >Create a vault <ArrowUpRight size={17} /></Link>
                 </motion.div>
               </div>
-              <div className="hero-proof"><span><Check size={14} /> Browser-side encryption</span><span><Check size={14} /> Verifiable on-chain state</span><span className="prototype-tag">PROTOTYPE / TESTNET</span></div>
             </motion.div>
             <div className="hero-story" aria-label="How Ghost Protocol protects your digital legacy">
               <motion.div className="hero-story-beat" style={{ opacity: prefersReducedMotion ? 1 : chapterOneOpacity, y: prefersReducedMotion ? 0 : chapterOneY }}>
@@ -197,8 +220,7 @@ export default function Home({ wallet, connecting, onConnect }: HomeProps) {
             </div>
             <div className="hero-coordinate coordinate-one">CHAIN / {config?.chainId ?? "TESTNET"}</div>
             <div className="hero-film-status"><span className="visual-live"><i /> PROTOCOL STATUS</span><span>{config ? "NODE CONNECTED" : "AWAITING NODE"}</span></div>
-            <div className="hero-scroll-cue"><span /> SCROLL SLOWLY TO PLAY THE STORY</div>
-          </div>
+          </motion.div>
           {!prefersReducedMotion && (
             <motion.div className="hero-cursor" aria-hidden="true" style={{ x: cursorX, y: cursorY, opacity: cursorVisible ? 1 : 0 }}>
               <span>SCROLL</span><ArrowDown size={15} /><span>TO EXPLORE</span>
@@ -207,37 +229,7 @@ export default function Home({ wallet, connecting, onConnect }: HomeProps) {
         </div>
       </section>
 
-      <section id="protocol" className="content-section features-section">
-        <div className="section-intro section-intro-row">
-          <div><span className="section-kicker">A CLEAR PATH THROUGH THE UNCERTAIN</span><h2>Quiet safeguards.<br /><span>Lasting intent.</span></h2></div>
-          <p>Prepare your vault, keep your check-ins visible, and make every release decision deliberate.</p>
-        </div>
-        <div className="feature-grid">
-          {features.map(({ icon: Icon, title, label, copy }, index) => (
-            <motion.article
-              className="feature-card glass-card"
-              key={title}
-              initial={prefersReducedMotion ? false : { opacity: 0, y: 26 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, amount: 0.22 }}
-              transition={{ duration: 0.65, delay: index * 0.08, ease: [0.23, 1, 0.32, 1] }}
-              onPointerMove={(event) => {
-                const rect = event.currentTarget.getBoundingClientRect();
-                event.currentTarget.style.setProperty("--pointer-x", `${event.clientX - rect.left}px`);
-                event.currentTarget.style.setProperty("--pointer-y", `${event.clientY - rect.top}px`);
-              }}
-            >
-              <div className="feature-card-top"><span className="feature-index">0{index + 1} / 04</span><span className="feature-icon"><Icon size={19} /></span></div>
-              <span className="feature-label">{label}</span>
-              <h3>{title}</h3>
-              <p>{copy}</p>
-            </motion.article>
-          ))}
-        </div>
-        <div className="security-note"><ShieldCheck size={17} /><span><strong>Security is a practice.</strong> This is a testnet prototype, not a production evidence service. Keep real or sensitive material out of this environment.</span><Link href="/review" className="text-link">Reviewer flow <ArrowUpRight size={14} /></Link></div>
-      </section>
-
-      <section id="register" className="content-section dashboard-section">
+      <section id="register" className="content-section dashboard-section" data-scroll-reveal>
         <div className="section-intro section-intro-row">
           <div><span className="section-kicker">THE LIVE REGISTER / TESTNET</span><h2>Every vault.<br /><span>One clear signal.</span></h2></div>
           <Button variant="outline" size="sm" className="button-quiet refresh-button" onClick={() => void refresh()} disabled={loading}><RefreshCw size={14} className={loading ? "animate-spin" : ""} /> Refresh register</Button>

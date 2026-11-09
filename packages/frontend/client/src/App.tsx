@@ -1,9 +1,12 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link, Route, Switch, useLocation } from "wouter";
 import { ArrowUpRight, Radio } from "lucide-react";
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+import LocomotiveScroll from "locomotive-scroll";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
@@ -20,7 +23,70 @@ function AppShell() {
   const [location] = useLocation();
   const [wallet, setWallet] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
+  const locomotiveScroll = useRef<LocomotiveScroll | null>(null);
   const pageName = location === "/create" ? "New vault" : location === "/review" ? "Reviewer console" : location.startsWith("/vault/") ? "Vault detail" : "Operations";
+
+  useLayoutEffect(() => {
+    gsap.registerPlugin(ScrollTrigger);
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    const scroll = new LocomotiveScroll({
+      lenisOptions: {
+        lerp: 0.085,
+        smoothWheel: true,
+        syncTouch: false,
+        wheelMultiplier: 0.85,
+      },
+      scrollCallback: () => ScrollTrigger.update(),
+    });
+    locomotiveScroll.current = scroll;
+
+    return () => {
+      scroll.destroy();
+      locomotiveScroll.current = null;
+    };
+  }, []);
+
+  useLayoutEffect(() => {
+    const appShell = document.querySelector(".app-shell");
+    if (!appShell) return;
+
+    if (locomotiveScroll.current) {
+      locomotiveScroll.current.scrollTo(0, { immediate: true, force: true });
+    } else {
+      window.scrollTo({ top: 0, behavior: "auto" });
+    }
+
+    const context = gsap.context(() => {
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+      gsap.utils.toArray<HTMLElement>("[data-scroll-reveal]").forEach((element) => {
+        gsap.fromTo(
+          element,
+          { autoAlpha: 0, y: 24 },
+          {
+            autoAlpha: 1,
+            y: 0,
+            duration: 0.7,
+            ease: "power2.out",
+            clearProps: "transform,opacity,visibility",
+            scrollTrigger: {
+              trigger: element,
+              start: "top 90%",
+              once: true,
+            },
+          },
+        );
+      });
+    }, appShell);
+
+    const refreshFrame = requestAnimationFrame(() => ScrollTrigger.refresh());
+    return () => {
+      cancelAnimationFrame(refreshFrame);
+      context.revert();
+    };
+  }, [location]);
+
   async function handleConnect() {
     setConnecting(true);
     try {
@@ -44,7 +110,7 @@ function AppShell() {
         </button>
       </header>
       <div className={`workspace-content${location === "/" ? " workspace-content-home" : ""}`}><Router wallet={wallet} connecting={connecting} onConnect={handleConnect} /></div>
-      <footer className="workspace-footer">
+      <footer className="workspace-footer" data-scroll-reveal>
         <span>Ghost Protocol <i>/</i> encrypted evidence infrastructure</span>
         <span className="mono">PROTOTYPE / TESTNET ONLY · USE SYNTHETIC MATERIAL</span>
       </footer>

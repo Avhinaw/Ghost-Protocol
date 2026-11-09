@@ -103,8 +103,7 @@ export function RadialMenu() {
         onClick={() => setOpen((value) => !value)}
       >
         <span className="radial-menu-toggle-ring" aria-hidden="true" />
-        <span className="radial-menu-toggle-label">{open ? "Close" : "Menu"}</span>
-        <span className="radial-menu-toggle-key" aria-hidden="true">{open ? "ESC" : "TAB"}</span>
+        <span className="loading-core-drop" aria-hidden="true" />
       </button>
     </div>
   );
