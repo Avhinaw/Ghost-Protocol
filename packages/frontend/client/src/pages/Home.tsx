@@ -221,20 +221,15 @@ export default function Home({ wallet, connecting, onConnect }: HomeProps) {
             <div className="hero-coordinate coordinate-one">CHAIN / {config?.chainId ?? "TESTNET"}</div>
             <div className="hero-film-status"><span className="visual-live"><i /> PROTOCOL STATUS</span><span>{config ? "NODE CONNECTED" : "AWAITING NODE"}</span></div>
           </motion.div>
-          {!prefersReducedMotion && (
-            <motion.div className="hero-cursor" aria-hidden="true" style={{ x: cursorX, y: cursorY, opacity: cursorVisible ? 1 : 0 }}>
-              <span>SCROLL</span><ArrowDown size={15} /><span>TO EXPLORE</span>
-            </motion.div>
-          )}
         </div>
       </section>
 
-      <section id="register" className="content-section dashboard-section" data-scroll-reveal>
+      <section id="register" className="content-section dashboard-section">
         <div className="section-intro section-intro-row">
           <div><span className="section-kicker">THE LIVE REGISTER / TESTNET</span><h2>Every vault.<br /><span>One clear signal.</span></h2></div>
           <Button variant="outline" size="sm" className="button-quiet refresh-button" onClick={() => void refresh()} disabled={loading}><RefreshCw size={14} className={loading ? "animate-spin" : ""} /> Refresh register</Button>
         </div>
-        <div className="dashboard-preview glass-card">
+        <div className="dashboard-preview glass-card" data-scroll-reveal>
           <div className="dashboard-topline"><div><span className="visual-live"><i /> NETWORK REGISTER</span><h3>Operations overview</h3></div><span className="dashboard-chain"><Radio size={13} /> {config ? `CHAIN ${config.chainId}` : "NODE OFFLINE"}</span></div>
           <div className="stat-strip">
             <div className="stat-item"><span className="stat-value">{active}</span><span className="stat-label micro">Active vaults</span></div>

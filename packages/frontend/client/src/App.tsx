@@ -24,6 +24,7 @@ function AppShell() {
   const [wallet, setWallet] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
   const locomotiveScroll = useRef<LocomotiveScroll | null>(null);
+  const revealUpdater = useRef<(() => void) | null>(null);
   const pageName = location === "/create" ? "New vault" : location === "/review" ? "Reviewer console" : location.startsWith("/vault/") ? "Vault detail" : "Operations";
 
   useLayoutEffect(() => {
@@ -37,7 +38,10 @@ function AppShell() {
         syncTouch: false,
         wheelMultiplier: 0.85,
       },
-      scrollCallback: () => ScrollTrigger.update(),
+      scrollCallback: () => {
+        ScrollTrigger.update();
+        revealUpdater.current?.();
+      },
     });
     locomotiveScroll.current = scroll;
 
@@ -57,32 +61,78 @@ function AppShell() {
       window.scrollTo({ top: 0, behavior: "auto" });
     }
 
+    let lastScrollY = window.scrollY;
+    let scrollDirection = 1;
+    let revealFrame = 0;
+    let updateReveals: (() => void) | null = null;
+    const animations = new Map<Element, gsap.core.Tween>();
+    const visibility = new Map<Element, boolean>();
+
     const context = gsap.context(() => {
       if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
-      gsap.utils.toArray<HTMLElement>("[data-scroll-reveal]").forEach((element) => {
-        gsap.fromTo(
-          element,
-          { autoAlpha: 0, y: 24 },
-          {
-            autoAlpha: 1,
-            y: 0,
-            duration: 0.7,
-            ease: "power2.out",
-            clearProps: "transform,opacity,visibility",
-            scrollTrigger: {
-              trigger: element,
-              start: "top 90%",
-              once: true,
-            },
-          },
-        );
+      const textElements = gsap.utils
+        .toArray<HTMLElement>(".workspace-content h1, .workspace-content h2, .workspace-content h3, .workspace-content .section-kicker, .workspace-content .detail-subtitle, .workspace-content .section-intro-row > p")
+        .filter((element) => !element.matches(".hero-display, .hero-story-beat h2") && !element.closest("[data-scroll-reveal]"));
+      const revealElements = [
+        ...gsap.utils.toArray<HTMLElement>("[data-scroll-reveal]"),
+        ...textElements,
+      ];
+      const blockRevealCount = revealElements.length - textElements.length;
+      const animate = (element: Element, isVisible: boolean) => {
+        if (visibility.get(element) === isVisible) return;
+        visibility.set(element, isVisible);
+        animations.get(element)?.kill();
+        const elementIndex = revealElements.indexOf(element as HTMLElement);
+        const isBlockReveal = elementIndex < blockRevealCount;
+        const y = isVisible ? 0 : isBlockReveal ? 24 : 18;
+        const tween = gsap.to(element, {
+          autoAlpha: isVisible ? 1 : 0,
+          y,
+          duration: isBlockReveal ? 0.65 : 0.55,
+          ease: "power2.out",
+        });
+        animations.set(element, tween);
+      };
+
+      revealElements.forEach((element) => {
+        const index = revealElements.indexOf(element);
+        const isBlockReveal = index < blockRevealCount;
+        gsap.set(element, { autoAlpha: 0, y: isBlockReveal ? 24 : 18 });
+        visibility.set(element, false);
       });
+
+      updateReveals = () => {
+        if (revealFrame) return;
+        revealFrame = requestAnimationFrame(() => {
+          revealFrame = 0;
+          const currentScrollY = window.scrollY;
+          if (currentScrollY !== lastScrollY) scrollDirection = Math.sign(currentScrollY - lastScrollY);
+          lastScrollY = currentScrollY;
+
+          revealElements.forEach((element) => {
+            const bounds = element.getBoundingClientRect();
+            if (scrollDirection >= 0 && bounds.top < window.innerHeight * 0.9 && bounds.bottom > 0) {
+              animate(element, true);
+            } else if (scrollDirection < 0 && bounds.top >= window.innerHeight * 0.9) {
+              animate(element, false);
+            }
+          });
+        });
+      };
+      revealUpdater.current = updateReveals;
+      window.addEventListener("scroll", updateReveals, { passive: true });
+      updateReveals();
     }, appShell);
 
     const refreshFrame = requestAnimationFrame(() => ScrollTrigger.refresh());
     return () => {
       cancelAnimationFrame(refreshFrame);
+      if (revealFrame) cancelAnimationFrame(revealFrame);
+      if (updateReveals) window.removeEventListener("scroll", updateReveals);
+      if (revealUpdater.current === updateReveals) revealUpdater.current = null;
+      animations.forEach((animation) => animation.kill());
+      visibility.clear();
       context.revert();
     };
   }, [location]);
