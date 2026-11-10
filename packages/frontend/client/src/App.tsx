@@ -102,6 +102,23 @@ function AppShell() {
         visibility.set(element, false);
       });
 
+      const entranceElements = revealElements.filter((element) => {
+        const bounds = element.getBoundingClientRect();
+        return bounds.top < window.innerHeight * 0.9 && bounds.bottom > 0;
+      });
+      entranceElements.forEach((element, index) => {
+        const isBlockReveal = revealElements.indexOf(element) < blockRevealCount;
+        visibility.set(element, true);
+        const tween = gsap.to(element, {
+          autoAlpha: 1,
+          y: 0,
+          duration: isBlockReveal ? 0.65 : 0.55,
+          delay: index * 0.08,
+          ease: "power2.out",
+        });
+        animations.set(element, tween);
+      });
+
       updateReveals = () => {
         if (revealFrame) return;
         revealFrame = requestAnimationFrame(() => {

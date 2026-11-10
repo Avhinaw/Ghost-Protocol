@@ -1497,3 +1497,439 @@ body { background: #0b0a10; }
   .app-shell::before,
   .app-shell::after { animation: none; }
 }
+
+.create-page .create-orb {
+  position: relative;
+  isolation: isolate;
+  transition: transform 420ms var(--ease-out), box-shadow 420ms var(--ease-out), border-color 300ms ease;
+}
+.create-page .create-orb::before,
+.create-page .create-orb::after {
+  position: absolute;
+  inset: -8px;
+  border: 1px solid rgba(200, 180, 255, 0.18);
+  border-radius: 50%;
+  content: "";
+  pointer-events: none;
+  transition: inset 420ms var(--ease-out), opacity 300ms ease, transform 420ms var(--ease-out);
+}
+.create-page .create-orb::after {
+  inset: 9px;
+  border-color: rgba(231, 126, 179, 0.22);
+  transform: rotate(-24deg) scaleX(0.74);
+}
+.create-page .create-orb:hover {
+  transform: translateY(-5px) rotate(7deg);
+  border-color: rgba(200, 180, 255, 0.72);
+  box-shadow: 0 0 0 14px rgba(119, 86, 255, 0.06), 0 0 64px rgba(119, 86, 255, 0.24), inset 0 1px 0 rgba(255,255,255,0.28);
+}
+.create-page .create-orb:hover::before { inset: -15px; opacity: 0.7; transform: rotate(28deg); }
+.create-page .create-orb:hover::after { inset: 3px; transform: rotate(20deg) scaleX(0.84); }
+.create-page .create-orb svg { transition: transform 420ms var(--ease-out), filter 300ms ease; }
+.create-page .create-orb:hover svg { transform: rotate(-24deg) scale(1.16); filter: drop-shadow(0 0 8px rgba(200, 180, 255, 0.8)); }
+
+.create-page .create-step { transition: color 220ms ease, transform 220ms var(--ease-out); }
+.create-page .create-step:hover { transform: translateY(-3px); color: var(--bone); }
+.create-page .create-step span { transition: color 220ms ease, background 220ms ease, box-shadow 220ms ease, transform 220ms var(--ease-out); }
+.create-page .create-step:hover span { transform: scale(1.12); color: var(--bone); box-shadow: 0 0 18px rgba(200, 180, 255, 0.3); }
+.create-page .create-step.is-done:hover span { color: #0d1715; box-shadow: 0 0 18px rgba(114, 241, 232, 0.32); }
+
+.create-page .create-form,
+.create-page .create-preview {
+  transition: border-color 260ms ease, box-shadow 360ms var(--ease-out), transform 360ms var(--ease-out);
+}
+.create-page .create-form:hover,
+.create-page .create-form:focus-within {
+  border-color: rgba(200, 180, 255, 0.3);
+  box-shadow: 0 34px 84px rgba(0,0,0,0.34), 0 0 38px rgba(119, 86, 255, 0.08), inset 0 1px 0 rgba(255,255,255,0.2);
+}
+.create-page .create-dropzone { transition: border-color 280ms ease, background 280ms ease, transform 320ms var(--ease-out), box-shadow 320ms var(--ease-out); }
+.create-page .create-dropzone:hover,
+.create-page .create-dropzone:focus-within,
+.create-page .create-dropzone.is-dragging {
+  transform: translateY(-4px) scale(1.008);
+  box-shadow: 0 18px 42px rgba(0,0,0,0.28), 0 0 32px rgba(200,180,255,0.12);
+}
+.create-page .create-dropzone .create-surface-image,
+.create-page .create-preview .create-surface-image {
+  transition: transform 700ms var(--ease-out), filter 500ms ease;
+}
+.create-page .create-dropzone:hover .create-surface-image,
+.create-page .create-dropzone:focus-within .create-surface-image,
+.create-page .create-dropzone.is-dragging .create-surface-image {
+  transform: scale(1.08) translate3d(-1%, -1%, 0);
+  filter: brightness(0.84) saturate(1.08) blur(0);
+}
+.create-page .create-dropzone .create-drop-icon {
+  transition: transform 360ms var(--ease-out), box-shadow 320ms ease, background 280ms ease;
+}
+.create-page .create-dropzone:hover .create-drop-icon,
+.create-page .create-dropzone:focus-within .create-drop-icon,
+.create-page .create-dropzone.is-dragging .create-drop-icon {
+  transform: translateY(-3px) rotate(-8deg) scale(1.08);
+  background: rgba(119, 86, 255, 0.2);
+  box-shadow: 0 0 30px rgba(200, 180, 255, 0.26);
+}
+.create-page .create-drop-content strong { transition: color 240ms ease, transform 300ms var(--ease-out); }
+.create-page .create-dropzone:hover .create-drop-content strong { transform: translateY(-2px); color: #f2eaff; }
+
+.create-page .create-field {
+  transition: transform 260ms var(--ease-out), border-color 240ms ease, background 240ms ease, box-shadow 260ms ease;
+}
+.create-page .create-field:hover,
+.create-page .create-field:focus-within {
+  transform: translateY(-3px);
+  border-color: rgba(200, 180, 255, 0.32);
+  background: rgba(119, 86, 255, 0.075);
+  box-shadow: 0 12px 28px rgba(0,0,0,0.16);
+}
+.create-page .create-field label svg { transition: transform 260ms var(--ease-out), filter 260ms ease; }
+.create-page .create-field:hover label svg,
+.create-page .create-field:focus-within label svg { transform: rotate(-9deg) scale(1.12); filter: drop-shadow(0 0 6px rgba(200,180,255,0.55)); }
+.create-page .create-field select { transition: border-color 220ms ease, box-shadow 220ms ease, background 220ms ease; }
+.create-page .create-field select:hover { border-color: rgba(200,180,255,0.38); background-color: rgba(200,180,255,0.08); }
+
+.create-page .create-preview:hover {
+  transform: translateY(-4px);
+  border-color: rgba(200, 180, 255, 0.32);
+  box-shadow: 0 24px 58px rgba(0,0,0,0.34), 0 0 36px rgba(119,86,255,0.12), inset 0 1px 0 rgba(255,240,237,0.3);
+}
+.create-page .create-preview:hover .create-surface-image { transform: scale(1.07) translate3d(-1%, -1%, 0); filter: brightness(0.8) saturate(1.08) blur(0); }
+.create-page .create-preview-ring { transition: transform 500ms var(--ease-out), box-shadow 350ms ease, border-color 300ms ease; }
+.create-page .create-preview:hover .create-preview-ring {
+  transform: rotate(-10deg) scale(1.06);
+  border-color: rgba(200,180,255,0.72);
+  box-shadow: 0 0 36px rgba(119,86,255,0.26), inset 0 0 0 9px rgba(11,15,14,0.7);
+}
+.create-page .create-preview .rule-row { transition: transform 220ms var(--ease-out), background 220ms ease; }
+.create-page .create-preview .rule-row:hover { transform: translateX(4px); background: rgba(200,180,255,0.07); }
+.create-page .create-commit { transition: transform 240ms var(--ease-out), box-shadow 240ms ease, filter 240ms ease !important; }
+.create-page .create-commit:hover:not(:disabled) {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px rgba(119,86,255,0.24), 0 0 22px rgba(200,180,255,0.14);
+  filter: brightness(1.08);
+}
+.create-page .create-commit:active:not(:disabled) { transform: translateY(-1px) scale(0.985); }
+
+@media (prefers-reduced-motion: reduce) {
+  .create-page .create-orb,
+  .create-page .create-orb::before,
+  .create-page .create-orb::after,
+  .create-page .create-step,
+  .create-page .create-step span,
+  .create-page .create-form,
+  .create-page .create-preview,
+  .create-page .create-dropzone,
+  .create-page .create-field,
+  .create-page .create-commit { transition: none !important; }
+}
+
+.create-page .create-orb {
+  border-color: transparent;
+  background: radial-gradient(circle at 35% 28%, rgba(217,232,255,0.2), rgba(117,169,247,0.07) 38%, rgba(224,82,82,0.1));
+  box-shadow: 0 0 0 12px rgba(117,169,247,0.035), 0 0 52px rgba(117,169,247,0.18), inset 0 0 28px rgba(200,180,255,0.08);
+}
+.create-page .create-orb::before,
+.create-page .create-orb::after {
+  border: 0;
+  background: radial-gradient(ellipse, rgba(119,86,255,0.12), transparent 68%);
+  filter: blur(8px);
+}
+.create-page .create-orb::after { background: radial-gradient(ellipse, rgba(231,126,179,0.1), transparent 68%); }
+.create-page .create-orb:hover { border-color: transparent; }
+
+.create-page .create-step span {
+  border: 0;
+  background: rgba(200,180,255,0.08);
+}
+.create-page .create-step.is-done span { background: var(--heaven); }
+.create-page .create-step:hover span { background: rgba(200,180,255,0.16); }
+.create-page .create-step.is-done:hover span { background: var(--heaven); }
+
+.create-page .create-form,
+.create-page .create-preview {
+  border-color: transparent;
+}
+.create-page .create-form:hover,
+.create-page .create-form:focus-within,
+.create-page .create-preview:hover { border-color: transparent; }
+.create-page .create-preview::after { border-color: transparent; }
+
+.create-page .create-dropzone {
+  border-color: rgba(217,232,255,0.2);
+  box-shadow: inset 0 0 48px rgba(119,86,255,0.04);
+}
+.create-page .create-dropzone:hover,
+.create-page .create-dropzone:focus-within,
+.create-page .create-dropzone.is-dragging,
+.create-page .create-dropzone.has-file { border-color: rgba(200,180,255,0.56); }
+.create-page .create-dropzone::after { border-color: transparent; }
+.create-page .create-drop-icon { border-color: transparent !important; }
+
+.create-page .create-field {
+  border: 0;
+  background: linear-gradient(135deg, rgba(200,180,255,0.055), rgba(255,255,255,0.018));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.045);
+}
+.create-page .create-field:hover,
+.create-page .create-field:focus-within {
+  border-color: transparent;
+  background: linear-gradient(135deg, rgba(119,86,255,0.1), rgba(255,255,255,0.025));
+}
+.create-page .create-field select {
+  border: 0;
+  box-shadow: inset 0 -1px 0 rgba(181,228,232,0.18);
+}
+.create-page .create-field select:hover { border-color: transparent; }
+.create-page .create-field select:focus-visible {
+  border-color: transparent;
+  box-shadow: inset 0 -1px 0 rgba(200,180,255,0.8), 0 5px 18px rgba(119,86,255,0.12);
+}
+
+.create-page .create-preview-ring {
+  border: 0;
+  box-shadow: 0 0 26px rgba(117,169,247,0.18), inset 0 0 0 9px rgba(11,15,14,0.7);
+}
+.create-page .create-preview:hover .create-preview-ring { border-color: transparent; }
+
+.app-shell :where(
+  .glass-card,
+  .panel,
+  .signal-panel,
+  .create-form,
+  .form-sheet,
+  .review-auth,
+  .closing-cta,
+  .feature-card,
+  .evidence-panel,
+  .create-preview,
+  .create-warning,
+  .create-field,
+  .vault-row,
+  .dashboard-chain,
+  .network-indicator,
+  .prototype-tag,
+  .wallet-button,
+  .button-primary,
+  .button-quiet,
+  .radial-item,
+  .radial-menu-toggle,
+  .radial-menu-orbit,
+  .radial-menu-toggle-ring,
+  .feature-icon
+) {
+  border-color: transparent !important;
+}
+
+.app-shell :where(
+  .workspace-footer,
+  .rail-bottom,
+  .rail-right,
+  .topbar,
+  .site-header,
+  .dashboard-topline,
+  .stat-strip,
+  .panel-header,
+  .create-submit,
+  .create-steps
+) {
+  border-color: transparent !important;
+}
+
+.app-shell .notice {
+  border-color: transparent !important;
+  border-left-color: var(--copper) !important;
+  background: linear-gradient(105deg, rgba(50,150,155,0.12), rgba(122,91,204,0.055));
+}
+.app-shell .create-warning {
+  background: linear-gradient(105deg, rgba(122,91,204,0.12), rgba(122,91,204,0.045));
+}
+.app-shell .dashboard-chain,
+.app-shell .prototype-tag,
+.app-shell .network-indicator,
+.app-shell .button-quiet {
+  background: rgba(200,180,255,0.055) !important;
+}
+.app-shell .wallet-button {
+  background: linear-gradient(115deg, rgba(69,188,255,0.12), rgba(155,124,255,0.12)) !important;
+  box-shadow: 0 8px 26px rgba(0,0,0,0.12);
+}
+.app-shell .wallet-button:hover {
+  background: linear-gradient(115deg, rgba(69,188,255,0.2), rgba(155,124,255,0.2)) !important;
+  box-shadow: 0 10px 30px rgba(119,86,255,0.14);
+}
+.app-shell .button-primary {
+  box-shadow: 0 8px 28px rgba(69,188,255,0.14), inset 0 1px 0 rgba(255,255,255,0.32);
+}
+.app-shell .button-quiet:hover {
+  background: rgba(200,180,255,0.1) !important;
+}
+
+.app-shell :where(.field input, .field select, .field textarea) {
+  border-color: transparent !important;
+  box-shadow: inset 0 -1px 0 rgba(178,222,225,0.22);
+}
+.app-shell :where(.field input:focus-visible, .field select:focus-visible, .field textarea:focus-visible) {
+  outline: 2px solid rgba(69,188,255,0.72);
+  outline-offset: 2px;
+  box-shadow: inset 0 -1px 0 rgba(69,188,255,0.75);
+}
+.app-shell :where(.field input[type="file"]::file-selector-button, .create-field select) {
+  border-color: transparent !important;
+}
+.app-shell .create-dropzone,
+.app-shell .file-drop {
+  border-color: rgba(200,180,255,0.28);
+}
+.app-shell .create-dropzone:focus-within,
+.app-shell .file-drop:focus-within {
+  border-color: rgba(200,180,255,0.62);
+}
+.app-shell :where(.create-dropzone::before, .create-dropzone::after, .create-preview::after) {
+  border-color: transparent !important;
+}
+.app-shell .create-drop-icon {
+  background: rgba(200,180,255,0.1);
+  box-shadow: 0 0 24px rgba(119,86,255,0.12);
+}
+.app-shell .create-field select {
+  background: linear-gradient(180deg, rgba(200,180,255,0.06), rgba(255,255,255,0.025));
+  box-shadow: inset 0 -1px 0 rgba(181,228,232,0.18);
+}
+.app-shell .create-field select:focus-visible {
+  outline: 2px solid rgba(200,180,255,0.7);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell .wallet-button,
+  .app-shell .button-primary,
+  .app-shell .button-quiet { transition: none !important; }
+}
+
+.rail-right { box-sizing: border-box; }
+.workspace { min-width: 0; }
+@media (min-width: 721px) {
+  .rail-right {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+    padding-bottom: 0;
+  }
+  .workspace { margin-right: 274px; }
+}
+.rail-right .rail-bottom {
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+.rail-wallet { padding-bottom: 0; }
+@media (max-width: 720px) {
+  .rail-right { position: static; height: auto; min-height: 0; }
+  .workspace { margin-right: 0; }
+  .radial-menu { bottom: 0; }
+}
+
+.app-shell :where(
+  .glass-card,
+  .panel:not(.signal-panel):not(.create-preview),
+  .form-sheet,
+  .review-auth,
+  .security-section,
+  .closing-cta,
+  .vault-row,
+  .create-warning,
+  .signal-panel,
+  .create-preview,
+  .create-form,
+  .feature-card
+) {
+  position: relative;
+  isolation: isolate;
+}
+
+.app-shell :where(
+  .glass-card,
+  .panel:not(.signal-panel):not(.create-preview),
+  .form-sheet,
+  .review-auth,
+  .security-section,
+  .closing-cta,
+  .vault-row,
+  .create-warning,
+  .signal-panel,
+  .create-preview
+)::before,
+.app-shell :where(.create-form, .feature-card)::after {
+  position: absolute;
+  z-index: 3;
+  inset: -2px;
+  padding: 4px;
+  border-radius: inherit;
+  background:
+    repeating-conic-gradient(
+      from 208deg,
+      rgba(201, 180, 255, 0.12) 0deg 1deg,
+      transparent 1deg 26deg
+    ),
+    conic-gradient(
+      from 208deg,
+      transparent 0deg 18deg,
+      rgba(175, 145, 255, 0.06) 18deg 34deg,
+      rgba(175, 145, 255, 0.3) 34deg 58deg,
+      rgba(118, 173, 255, 0.2) 58deg 78deg,
+      rgba(175, 145, 255, 0.32) 78deg 101deg,
+      rgba(235, 155, 204, 0.28) 101deg 125deg,
+      rgba(104, 196, 255, 0.17) 125deg 146deg,
+      rgba(235, 155, 204, 0.12) 146deg 170deg,
+      transparent 190deg 360deg
+    ),
+    radial-gradient(ellipse at 22% 14%, rgba(175,145,255,0.22), transparent 42%),
+    radial-gradient(ellipse at 82% 86%, rgba(104,196,255,0.16), transparent 40%);
+  content: "";
+  pointer-events: none;
+  opacity: 0.48;
+  filter: blur(3.5px);
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  transition: opacity 300ms ease;
+}
+.app-shell :where(
+  .glass-card,
+  .panel,
+  .form-sheet,
+  .review-auth,
+  .security-section,
+  .closing-cta,
+  .vault-row,
+  .create-warning,
+  .signal-panel,
+  .create-preview,
+  .create-form,
+  .feature-card
+):hover::before,
+.app-shell :where(.create-form, .feature-card):hover::after {
+  opacity: 0.74;
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-shell :where(
+    .glass-card,
+    .panel,
+    .form-sheet,
+    .review-auth,
+    .security-section,
+    .closing-cta,
+    .vault-row,
+    .create-warning,
+    .signal-panel,
+    .create-preview,
+    .create-form,
+    .feature-card
+  )::before,
+  .app-shell :where(.create-form, .feature-card)::after { transition: none; }
+}
+
+.hero-display { letter-spacing: 0.007em; }
