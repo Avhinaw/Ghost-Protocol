@@ -5,6 +5,10 @@ import * as dotenv from "dotenv";
 dotenv.config({ path: "../../.env" });
 
 const oraclePrivateKey = process.env.ORACLE_PRIVATE_KEY;
+const validOraclePrivateKey =
+  oraclePrivateKey && /^0x[0-9a-fA-F]{64}$/.test(oraclePrivateKey)
+    ? oraclePrivateKey
+    : undefined;
 const baseSepoliaRpcUrl = process.env.BASE_SEPOLIA_RPC_URL || "https://sepolia.base.org";
 
 export default defineConfig({
@@ -35,7 +39,7 @@ export default defineConfig({
       type: "http",
       chainId: 84532,
       url: baseSepoliaRpcUrl,
-      accounts: oraclePrivateKey ? [oraclePrivateKey] : [],
+      accounts: validOraclePrivateKey ? [validOraclePrivateKey] : [],
     },
   },
   test: {
