@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { createServer, type Server } from "node:http";
+import { keccak256, Wallet } from "ethers";
 import test from "node:test";
-import { createApp } from "../src/app.js";
+import { createApp, vaultFileSignatureMessage } from "../src/app.js";
+import type { SaveVaultFileInput } from "../src/mongo-vault-store.js";
+import type { VaultFileModel } from "../src/models.js";
 
 const sampleVault = {
   id: 1n,
@@ -74,6 +77,68 @@ test("backend rejects malformed oracle input", async (t) => {
     body: JSON.stringify({ evidenceHash: "not-a-bytes32" }),
   });
   assert.equal(response.status, 400);
+});
+
+test("encrypted vault files require the on-chain owner signature and matching payload hash", async (t) => {
+  const owner = Wallet.createRandom();
+  const encryptedData = Buffer.from("encrypted test payload");
+  const payloadHash = keccak256(encryptedData);
+  const vault = {
+    ...sampleVault,
+    owner: owner.address,
+    payloadHash,
+    payloadCid: `mongo://${payloadHash.slice(2).toLowerCase()}`,
+  };
+  let savedFile: VaultFileModel | undefined;
+  const fakeStore = {
+    saveVaultFile: async (file: SaveVaultFileInput) => { savedFile = { ...file, createdAt: new Date(), updatedAt: new Date() }; },
+    getVaultFile: async () => savedFile ?? null,
+  };
+  const fakeService = {
+    contractAddress: "0x0000000000000000000000000000000000000002",
+    chainId: async () => 84532n,
+    getVault: async () => vault,
+  };
+  const { server, baseUrl } = await listen(createApp(fakeService as any, undefined, undefined, undefined, undefined, fakeStore));
+  t.after(() => server.close());
+
+  const iv = Buffer.alloc(12, 7).toString("base64");
+  const mismatchedForm = new FormData();
+  mismatchedForm.append("file", new Blob([Buffer.from("not the committed payload")]), "wrong.txt");
+  const mismatchedUpload = await fetch(`${baseUrl}/api/v1/vaults/1/file`, { method: "POST", body: mismatchedForm });
+  assert.equal(mismatchedUpload.status, 409);
+
+  const uploadMessage = vaultFileSignatureMessage("upload", "84532", fakeService.contractAddress, "1", payloadHash, {
+    fileName: "evidence.txt",
+    iv,
+    contentType: "text/plain",
+  });
+  const form = new FormData();
+  form.append("file", new Blob([encryptedData]), "evidence.txt");
+  form.append("iv", iv);
+  form.append("contentType", "text/plain");
+  form.append("signature", await owner.signMessage(uploadMessage));
+  const upload = await fetch(`${baseUrl}/api/v1/vaults/1/file`, { method: "POST", body: form });
+  assert.equal(upload.status, 201);
+  assert.equal(savedFile?.ownerAddress, owner.address);
+  assert.deepEqual(savedFile?.encryptedData, encryptedData);
+
+  const downloadMessage = vaultFileSignatureMessage("download", "84532", fakeService.contractAddress, "1", payloadHash);
+  const download = await fetch(`${baseUrl}/api/v1/vaults/1/file`, {
+    headers: { "x-wallet-signature": await owner.signMessage(downloadMessage) },
+  });
+  assert.equal(download.status, 200);
+  assert.equal(download.headers.get("x-encrypted-file-iv"), iv);
+  assert.deepEqual(Buffer.from(await download.arrayBuffer()), encryptedData);
+
+  const otherWallet = Wallet.createRandom();
+  const unauthorizedForm = new FormData();
+  unauthorizedForm.append("file", new Blob([encryptedData]), "evidence.txt");
+  unauthorizedForm.append("iv", iv);
+  unauthorizedForm.append("contentType", "text/plain");
+  unauthorizedForm.append("signature", await otherWallet.signMessage(uploadMessage));
+  const unauthorized = await fetch(`${baseUrl}/api/v1/vaults/1/file`, { method: "POST", body: unauthorizedForm });
+  assert.equal(unauthorized.status, 403);
 });
 
 test("backend reports invalid vault IDs and oversized uploads as client errors", async (t) => {

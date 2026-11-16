@@ -16,6 +16,10 @@ Use the contract address, RPC, and frontend origin in the Render backend environ
 
 The Cloudflare Pages frontend should be rebuilt with `VITE_BACKEND_URL=https://ghost-protocol-4dcu.onrender.com`, `VITE_CHAIN_ID=84532`, and (optionally) `VITE_CONTRACT_ADDRESS` set to the address above. The frontend defaults to the current Render backend URL; `VITE_BACKEND_URL` can override it for other deployments.
 
+The Node backend stores wallet and encrypted vault-file records in MongoDB when `MONGODB_URI` is configured. File bytes are encrypted in the browser, then the backend verifies both the AES ciphertext hash against the contract and the wallet signature against the on-chain vault owner before storing them. AI assessments remain in memory and expire; they are not persisted to MongoDB.
+
+Never put a MongoDB URI in source code, frontend variables, chat, or a committed file. If a URI/password has been shared, rotate the database user's password and update Render's secret environment setting.
+
 ## Node oracle (`packages/backend-ai/node-oracle`)
 
 | Variable | Purpose | Default / requirement |
@@ -25,6 +29,8 @@ The Cloudflare Pages frontend should be rebuilt with `VITE_BACKEND_URL=https://g
 | `ORACLE_PRIVATE_KEY` | Oracle signer | Optional; required for relaying |
 | `PORT` | HTTP listen port | `4000` |
 | `CORS_ORIGIN` | Allowed frontend origin | `http://localhost:3000` |
+| `MONGODB_URI` | MongoDB Atlas connection string; set as a Render secret | Optional; encrypted vault storage is disabled if unset |
+| `MONGODB_DATABASE` | MongoDB database name | `ghost_protocol` |
 | `ORACLE_SCAN_INTERVAL_MS` | Worker polling interval | `21600000` (six hours) |
 | `ORACLE_AUTO_TRIGGER` | Automatically relay expired-vault triggers | `false` |
 | `AI_VERIFIER_URL` | Python verifier base URL | Optional; AI endpoints disabled if absent |

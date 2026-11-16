@@ -1,10 +1,12 @@
 import cors from "cors";
+import { keccak256, verifyMessage } from "ethers";
 import express, { type NextFunction, type Request, type Response } from "express";
 import multer from "multer";
 import { z } from "zod";
 import { AssessmentRegistry } from "./assessment-registry.js";
 import type { AiVerifier } from "./ai-verifier.js";
 import { BlockchainService, type VaultRecord } from "./blockchain-service.js";
+import type { VaultStore } from "./mongo-vault-store.js";
 
 const triggerBodySchema = z.object({
   evidenceHash: z.string().regex(/^0x[a-fA-F0-9]{64}$/).optional(),
@@ -31,8 +33,43 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 8 * 1024 * 1024, files: 1 },
 });
+const encryptedFileUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024 + 16, files: 1 },
+});
 
 class BadRequestError extends Error {}
+
+export function vaultFileSignatureMessage(
+  action: "upload" | "download",
+  chainId: string,
+  contractAddress: string,
+  vaultId: string,
+  payloadHash: string,
+  uploadMetadata?: { fileName: string; iv: string; contentType: string },
+): string {
+  const message = [
+    "Ghost Protocol encrypted vault file",
+    `action: ${action}`,
+    `chainId: ${chainId}`,
+    `contractAddress: ${contractAddress.toLowerCase()}`,
+    `vaultId: ${vaultId}`,
+    `payloadHash: ${payloadHash.toLowerCase()}`,
+  ];
+  if (action === "upload" && uploadMetadata) {
+    message.push(
+      `fileName: ${uploadMetadata.fileName}`,
+      `iv: ${uploadMetadata.iv}`,
+      `contentType: ${uploadMetadata.contentType}`,
+    );
+  }
+  return message.join("\n");
+}
+
+function safeFileName(fileName: string): string {
+  const normalized = fileName.replace(/[\\/]/g, "_").replace(/[\u0000-\u001f\u007f]/g, "").trim();
+  return (normalized || "encrypted-payload").slice(0, 180);
+}
 
 function parseVaultId(value: string): bigint {
   if (!/^\d+$/.test(value)) {
@@ -43,6 +80,14 @@ function parseVaultId(value: string): bigint {
     throw new BadRequestError("vaultId must be a positive uint256");
   }
   return vaultId;
+}
+
+function getVaultIdParam(request: Request): bigint {
+  const value = request.params.vaultId;
+  if (typeof value !== "string") {
+    throw new BadRequestError("vaultId must be a positive uint256");
+  }
+  return parseVaultId(value);
 }
 
 function serializeVault(vault: VaultRecord) {
@@ -72,6 +117,7 @@ export function createApp(
   aiVerifier?: AiVerifier,
   assessmentRegistry = new AssessmentRegistry(),
   reviewerApprovalToken?: string,
+  vaultStore?: VaultStore,
 ) {
   const app = express();
   app.use(cors({ origin: corsOrigin }));
@@ -87,6 +133,7 @@ export function createApp(
         oracleAddress: await service.oracleAddress(),
         oracleConfigured: await service.isConfiguredOracle(),
         aiVerifierConfigured: Boolean(aiVerifier),
+        vaultStorageConfigured: Boolean(vaultStore),
         aiAssistedAutoRelease: false,
         timestamp: new Date().toISOString(),
       });
@@ -101,6 +148,7 @@ export function createApp(
         chainId: (await service.chainId()).toString(),
         contractAddress: service.contractAddress,
         rpcConfigured: true,
+        vaultStorageConfigured: Boolean(vaultStore),
       });
     } catch (error) {
       next(error);
@@ -120,6 +168,131 @@ export function createApp(
     try {
       const vault = await service.getVault(parseVaultId(request.params.vaultId));
       response.json({ vault: serializeVault(vault) });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/v1/vaults/:vaultId/file", encryptedFileUpload.single("file"), async (request, response, next) => {
+    try {
+      if (!vaultStore) {
+        response.status(503).json({ error: "Encrypted file storage is not configured" });
+        return;
+      }
+      if (!request.file) {
+        response.status(400).json({ error: "A single encrypted file is required" });
+        return;
+      }
+      const vaultId = getVaultIdParam(request);
+      const vault = await service.getVault(vaultId);
+      const chainId = (await service.chainId()).toString();
+      const payloadHash = keccak256(request.file.buffer);
+      if (payloadHash.toLowerCase() !== vault.payloadHash.toLowerCase()) {
+        response.status(409).json({ error: "Encrypted file hash does not match the on-chain payload hash" });
+        return;
+      }
+      const expectedCid = `mongo://${payloadHash.slice(2).toLowerCase()}`;
+      if (vault.payloadCid !== expectedCid) {
+        response.status(409).json({ error: "Vault does not reference MongoDB-backed encrypted storage" });
+        return;
+      }
+      const iv = request.body?.iv;
+      const signature = request.body?.signature;
+      const contentType = typeof request.body?.contentType === "string"
+        ? request.body.contentType.slice(0, 160) || "application/octet-stream"
+        : "application/octet-stream";
+      if (typeof iv !== "string" || !/^[A-Za-z0-9+/]{16}$/.test(iv) || Buffer.from(iv, "base64").length !== 12) {
+        response.status(400).json({ error: "A valid 12-byte AES-GCM IV is required" });
+        return;
+      }
+      if (typeof signature !== "string") {
+        response.status(401).json({ error: "Wallet signature is required" });
+        return;
+      }
+      const fileName = safeFileName(request.file.originalname);
+      let signerAddress: string;
+      try {
+        signerAddress = verifyMessage(
+          vaultFileSignatureMessage("upload", chainId, service.contractAddress, vaultId.toString(), payloadHash, {
+            fileName: request.file.originalname,
+            iv,
+            contentType,
+          }),
+          signature,
+        ).toLowerCase();
+      } catch {
+        response.status(401).json({ error: "Wallet signature is invalid" });
+        return;
+      }
+      if (signerAddress !== vault.owner.toLowerCase()) {
+        response.status(403).json({ error: "Only the on-chain vault owner can store its encrypted file" });
+        return;
+      }
+      await vaultStore.saveVaultFile({
+        chainId,
+        contractAddress: service.contractAddress,
+        vaultId: vaultId.toString(),
+        ownerAddress: vault.owner,
+        fileName,
+        contentType,
+        payloadHash,
+        iv,
+        encryptedData: request.file.buffer,
+      });
+      response.status(201).json({
+        vaultId: vaultId.toString(),
+        ownerAddress: vault.owner,
+        fileName,
+        payloadHash,
+        stored: true,
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/api/v1/vaults/:vaultId/file", async (request, response, next) => {
+    try {
+      if (!vaultStore) {
+        response.status(503).json({ error: "Encrypted file storage is not configured" });
+        return;
+      }
+      const vaultId = getVaultIdParam(request);
+      const chainId = (await service.chainId()).toString();
+      const vault = await service.getVault(vaultId);
+      const file = await vaultStore.getVaultFile(chainId, service.contractAddress, vaultId.toString());
+      if (!file) {
+        response.status(404).json({ error: "Encrypted file was not found" });
+        return;
+      }
+      if (file.payloadHash.toLowerCase() !== vault.payloadHash.toLowerCase()) {
+        response.status(409).json({ error: "Stored file no longer matches the on-chain payload hash" });
+        return;
+      }
+      const signature = request.header("x-wallet-signature");
+      if (!signature) {
+        response.status(401).json({ error: "Wallet signature is required" });
+        return;
+      }
+      let signerAddress: string;
+      try {
+        signerAddress = verifyMessage(
+          vaultFileSignatureMessage("download", chainId, service.contractAddress, vaultId.toString(), file.payloadHash),
+          signature,
+        ).toLowerCase();
+      } catch {
+        response.status(401).json({ error: "Wallet signature is invalid" });
+        return;
+      }
+      if (signerAddress !== file.ownerAddress.toLowerCase() || signerAddress !== vault.owner.toLowerCase()) {
+        response.status(403).json({ error: "Only the on-chain vault owner can access its encrypted file" });
+        return;
+      }
+      response.setHeader("Content-Type", "application/octet-stream");
+      response.setHeader("Content-Disposition", `attachment; filename*=UTF-8''${encodeURIComponent(file.fileName)}`);
+      response.setHeader("X-Encrypted-File-IV", file.iv);
+      response.setHeader("X-Original-Content-Type", encodeURIComponent(file.contentType));
+      response.send(file.encryptedData);
     } catch (error) {
       next(error);
     }

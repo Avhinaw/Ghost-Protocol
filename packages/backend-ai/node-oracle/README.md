@@ -10,6 +10,8 @@ This package is the backend bridge between the frontend, `GhostProtocol.sol`, an
 | `GET` | `/api/v1/config` | Return chain ID and contract address for frontend configuration. |
 | `GET` | `/api/v1/vaults` | List all vaults with JSON-safe string timestamps and IDs. |
 | `GET` | `/api/v1/vaults/:vaultId` | Read one vault. |
+| `POST` | `/api/v1/vaults/:vaultId/file` | Store the encrypted file after verifying its on-chain hash and vault-owner signature. |
+| `GET` | `/api/v1/vaults/:vaultId/file` | Download the encrypted bytes after verifying a vault-owner wallet signature. |
 | `POST` | `/api/v1/oracle/scan` | Find expired active vaults. `{ "execute": true }` also relays timeout triggers. |
 | `POST` | `/api/v1/oracle/vaults/:vaultId/trigger` | Relay an eligible timeout trigger. Evidence hashes are rejected; emergency triggers must use the reviewed-assessment route. |
 | `POST` | `/api/v1/ai/verify-text` | Store a structured AI assessment. It always requires human review and never allows automatic release. |
@@ -30,6 +32,15 @@ npm install
 Copy `.env.example` to `.env` for the current Base Sepolia deployment preset. For local development, override `RPC_URL`, `CONTRACT_ADDRESS`, and `CORS_ORIGIN` for your local Hardhat stack. For any public testnet, configure `ORACLE_PRIVATE_KEY` only as a secret and use a dedicated authorized testnet oracle wallet; never use Hardhat keys on a public network.
 
 On Render, the API binds to `0.0.0.0` and uses the platform-provided `PORT`. Do not pin `PORT=4000` in Render; keep port `4000` for local development only.
+
+Set `MONGODB_URI` in Render's secret environment settings and optionally set `MONGODB_DATABASE` (defaults to `ghost_protocol`). The backend stores wallet addresses derived from owner signatures and encrypted vault-file metadata/bytes in MongoDB. The file is client-encrypted before upload; the API verifies its hash against the contract. MongoDB storage is disabled when `MONGODB_URI` is unset.
+
+Mongo collections:
+
+- `wallets`: normalized wallet address and first/last-seen timestamps.
+- `vault_files`: chain/contract/vault IDs, owner, filename, content type, AES-GCM IV, ciphertext hash, and ciphertext bytes.
+
+The raw AES key is not stored in MongoDB. This prototype does not yet provide a durable key-recovery/decryption flow; preserve no real evidence in this deployment.
 
 Start the local chain in one terminal:
 

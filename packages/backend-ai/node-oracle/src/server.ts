@@ -5,11 +5,16 @@ import { HttpAiVerifierClient } from "./ai-verifier.js";
 import { BlockchainService } from "./blockchain-service.js";
 import { loadConfig } from "./config.js";
 import { OracleWorker } from "./oracle-worker.js";
+import { MongoVaultStore } from "./mongo-vault-store.js";
 
 const config = loadConfig();
 if (!config.CONTRACT_ADDRESS) {
   throw new Error("CONTRACT_ADDRESS is required to start the backend");
 }
+const vaultStore = config.MONGODB_URI
+  ? new MongoVaultStore(config.MONGODB_URI, config.MONGODB_DATABASE)
+  : undefined;
+if (vaultStore) await vaultStore.connect();
 
 const service = new BlockchainService(
   config.RPC_URL,
@@ -18,7 +23,7 @@ const service = new BlockchainService(
 );
 const aiVerifier = config.AI_VERIFIER_URL ? new HttpAiVerifierClient(config.AI_VERIFIER_URL) : undefined;
 const assessmentRegistry = new AssessmentRegistry(config.AI_ASSESSMENT_TTL_MS);
-const app = createApp(service, config.CORS_ORIGIN, aiVerifier, assessmentRegistry, config.REVIEWER_APPROVAL_TOKEN);
+const app = createApp(service, config.CORS_ORIGIN, aiVerifier, assessmentRegistry, config.REVIEWER_APPROVAL_TOKEN, vaultStore);
 const server = createServer(app);
 const worker = config.ORACLE_PRIVATE_KEY
   ? new OracleWorker(
@@ -33,6 +38,7 @@ server.listen(config.PORT, "0.0.0.0", () => {
   console.log(`Contract: ${config.CONTRACT_ADDRESS}`);
   console.log(aiVerifier ? `AI verifier: ${config.AI_VERIFIER_URL}` : "AI verifier disabled");
   console.log(config.REVIEWER_APPROVAL_TOKEN ? "AI reviewer gate configured" : "AI reviewer gate disabled: REVIEWER_APPROVAL_TOKEN is not configured");
+  console.log(vaultStore ? "MongoDB vault storage connected" : "MongoDB vault storage disabled: MONGODB_URI is not configured");
   if (worker) worker.start();
   else console.log("Oracle worker disabled: ORACLE_PRIVATE_KEY is not configured");
 });
@@ -40,7 +46,19 @@ server.listen(config.PORT, "0.0.0.0", () => {
 function shutdown(signal: string) {
   console.log(`${signal} received; shutting down`);
   worker?.stop();
-  server.close(() => process.exit(0));
+  server.close(() => {
+    if (!vaultStore) {
+      process.exit(0);
+      return;
+    }
+    void vaultStore.close().then(
+      () => process.exit(0),
+      (error: unknown) => {
+        console.error("Failed to close MongoDB connection:", error);
+        process.exit(1);
+      },
+    );
+  });
 }
 
 process.on("SIGINT", () => shutdown("SIGINT"));
