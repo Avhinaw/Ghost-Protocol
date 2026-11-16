@@ -2,6 +2,20 @@
 
 Configure each service from its own package working directory. Do not commit `.env` files or real credentials. The contract, oracle, reviewer, and AI settings below are for local development unless explicitly described otherwise.
 
+## Current Base Sepolia deployment
+
+The current test deployment is on Base Sepolia (chain ID `84532`):
+
+| Setting | Value |
+|---|---|
+| Contract address | `0x4B58BEEA180668b0bc80f8B1B6390E08d21003a1` |
+| Frontend origin | `https://ghost-protocol-asf.pages.dev` |
+| Base Sepolia RPC | `https://sepolia.base.org` |
+
+Use the contract address, RPC, and frontend origin in the Render backend environment. Set `ORACLE_PRIVATE_KEY` there as a secret for a wallet authorized by the contract; do not put it in this repository or any `VITE_` variable. The backend template at `packages/backend-ai/node-oracle/.env.example` contains these public deployment settings.
+
+The Cloudflare Pages frontend must be rebuilt with `VITE_BACKEND_URL` set to the deployed Node oracle API URL, `VITE_CHAIN_ID=84532`, and (optionally) `VITE_CONTRACT_ADDRESS` set to the address above. The Render backend URL was not supplied, so it is intentionally not hard-coded. The frontend now reports a clear configuration error until `VITE_BACKEND_URL` is set.
+
 ## Node oracle (`packages/backend-ai/node-oracle`)
 
 | Variable | Purpose | Default / requirement |
@@ -33,9 +47,9 @@ Never place AI credentials, reviewer tokens, or oracle keys in frontend `VITE_` 
 
 | Variable | Purpose |
 |---|---|
-| `VITE_BACKEND_URL` | Node oracle HTTP API base URL; set to `http://127.0.0.1:4000` for local work |
-| `VITE_CONTRACT_ADDRESS` | Optional contract address fallback |
-| `VITE_CHAIN_ID` | Expected EVM chain ID; defaults to `31337` |
+| `VITE_BACKEND_URL` | Required Node oracle HTTP API base URL; local: `http://127.0.0.1:4000` |
+| `VITE_CONTRACT_ADDRESS` | Optional fallback; current Base Sepolia deployment address |
+| `VITE_CHAIN_ID` | Expected EVM chain ID; local: `31337`, Base Sepolia: `84532` |
 | `JWT_SECRET` | Server-side session signing secret; set a random local value to enable the development reviewer session |
 
 Other frontend framework variables are unrelated to blockchain credentials and depend on the local app environment. Never store wallet private keys in frontend environment variables.

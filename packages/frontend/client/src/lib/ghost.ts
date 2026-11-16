@@ -1,13 +1,13 @@
 import { BrowserProvider, Contract, keccak256 } from "ethers";
-export const BACKEND_URL = (import.meta.env.VITE_BACKEND_URL || "https://4000-id5iyjigj7085m5t66tnq-7cd62328.sg1.manus.computer").replace(/\/$/, "");
-export const FALLBACK_CONTRACT = import.meta.env.VITE_CONTRACT_ADDRESS || "";
-export const EXPECTED_CHAIN_ID = Number(import.meta.env.VITE_CHAIN_ID || 31337);
+export const BACKEND_URL = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/$/, "");
+export const FALLBACK_CONTRACT = import.meta.env.VITE_CONTRACT_ADDRESS || "0x4B58BEEA180668b0bc80f8B1B6390E08d21003a1";
+export const EXPECTED_CHAIN_ID = Number(import.meta.env.VITE_CHAIN_ID || 84532);
 export const GHOST_PROTOCOL_ABI = ["function createVault(bytes32 payloadHash, string payloadCid, bytes32 keyCommitment, uint64 checkInInterval, uint64 gracePeriod) returns (uint256 vaultId)", "function sendHeartbeat(uint256 vaultId)", "function cancelVault(uint256 vaultId)", "function releaseVault(uint256 vaultId, bytes releaseKey)", "function vaultCount() view returns (uint256)"] as const;
 export type WalletState = { address: string; chainId: number };
 export type ContractConfig = { chainId: string; contractAddress: string; rpcConfigured: boolean };
 export type Vault = { id: string; owner: string; payloadHash: string; payloadCid: string; keyCommitment: string; checkInInterval: string; gracePeriod: string; createdAt: string; lastHeartbeat: string; triggeredAt: string; triggerEvidenceHash: string; state: number; stateName: string; releaseKeyAvailable: boolean; deadline: string; expired: boolean };
 declare global { interface Window { ethereum?: { request: (args: { method: string; params?: unknown[] }) => Promise<unknown> }; } }
-export async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> { const response = await fetch(`${BACKEND_URL}${path}`, init); const body = await response.json().catch(() => ({})); if (!response.ok) throw new Error(body.error || `Request failed (${response.status})`); return body as T; }
+export async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> { if (!BACKEND_URL) throw new Error("Backend URL is not configured. Set VITE_BACKEND_URL for this deployment."); const response = await fetch(`${BACKEND_URL}${path}`, init); const body = await response.json().catch(() => ({})); if (!response.ok) throw new Error(body.error || `Request failed (${response.status})`); return body as T; }
 async function walletProvider() { if (!window.ethereum) throw new Error("Install a browser wallet such as MetaMask to continue."); const provider = new BrowserProvider(window.ethereum as never); await provider.send("eth_requestAccounts", []); const network = await provider.getNetwork(); if (Number(network.chainId) !== EXPECTED_CHAIN_ID) throw new Error(`Wrong network. Switch your wallet to chain ${EXPECTED_CHAIN_ID}.`); return provider; }
 export async function connectWallet(): Promise<WalletState> { const provider = await walletProvider(); return { address: await (await provider.getSigner()).getAddress(), chainId: Number((await provider.getNetwork()).chainId) }; }
 async function contractFor(address: string) { if (!address) throw new Error("No contract address configured. Deploy GhostProtocol and set the frontend contract address."); const provider = await walletProvider(); return new Contract(address, GHOST_PROTOCOL_ABI, await provider.getSigner()); }

@@ -27,7 +27,7 @@ cd packages/backend-ai/node-oracle
 npm install
 ```
 
-Copy `.env.example` to `.env` and set `CONTRACT_ADDRESS` after deploying the contract. For local development, the backend can use the known Hardhat deployer key as a test-only oracle key, but never use Hardhat keys on a public network.
+Copy `.env.example` to `.env` for the current Base Sepolia deployment preset. For local development, override `RPC_URL`, `CONTRACT_ADDRESS`, and `CORS_ORIGIN` for your local Hardhat stack. For any public testnet, configure `ORACLE_PRIVATE_KEY` only as a secret and use a dedicated authorized testnet oracle wallet; never use Hardhat keys on a public network.
 
 Start the local chain in one terminal:
 
