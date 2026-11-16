@@ -6,9 +6,7 @@ import {IGhostProtocol} from "./IGhostProtocol.sol";
 
 /// @title GhostProtocol
 /// @notice Testnet-first encrypted evidence vault with a dead-man's-switch trigger.
-/// @dev The contract stores metadata and a commitment to the release key. The raw
-///      key is only accepted after a vault has entered Triggered state. This is a
-///      prototype release mechanism and must be replaced or hardened for production.
+/// @dev The contract stores a proof-manifest hash, never document bytes or keys.
 contract GhostProtocol is Ownable, IGhostProtocol {
     uint64 public constant MIN_CHECK_IN_INTERVAL = 1 hours;
     uint64 public constant MAX_CHECK_IN_INTERVAL = 365 days;
@@ -30,8 +28,8 @@ contract GhostProtocol is Ownable, IGhostProtocol {
     error HeartbeatStillValid();
     error NotAuthorizedOracle();
     error EvidenceHashRequired();
-    error ReleaseKeyRequired();
-    error InvalidReleaseKey();
+    error InvalidReleaseProof();
+    error ProofHashMismatch();
     error ZeroAddress();
 
     constructor(address initialOwner, address initialOracle) Ownable(initialOwner) {
@@ -79,8 +77,7 @@ contract GhostProtocol is Ownable, IGhostProtocol {
             lastHeartbeat: timestamp,
             triggeredAt: 0,
             triggerEvidenceHash: bytes32(0),
-            state: VaultState.Active,
-            releaseKey: ""
+            state: VaultState.Active
         });
 
         emit VaultCreated(
@@ -154,19 +151,19 @@ contract GhostProtocol is Ownable, IGhostProtocol {
         _trigger(vaultId, true, evidenceHash);
     }
 
-    function releaseVault(uint256 vaultId, bytes calldata releaseKey)
+    function releaseVaultWithProof(uint256 vaultId, bytes32 proofHash)
         external
         override
         vaultExists(vaultId)
+        onlyVaultOwner(vaultId)
     {
         Vault storage vault = _vaults[vaultId];
         if (vault.state != VaultState.Triggered) {
             revert InvalidVaultState(VaultState.Triggered, vault.state);
         }
-        if (releaseKey.length == 0) revert ReleaseKeyRequired();
-        if (keccak256(releaseKey) != vault.keyCommitment) revert InvalidReleaseKey();
+        if (proofHash == bytes32(0)) revert InvalidReleaseProof();
+        if (proofHash != vault.payloadHash) revert ProofHashMismatch();
 
-        vault.releaseKey = releaseKey;
         vault.state = VaultState.Released;
         emit VaultReleased(vaultId, msg.sender);
     }

@@ -13,14 +13,14 @@ Active
   ├─ permissionless trigger after timeout ─► Triggered
   └─ authorized oracle emergency trigger ─► Triggered
 
-Triggered + matching release key ─────────► Released
+Triggered + owner submits matching proof hash ─► Released
 ```
 
-The contract stores vault metadata and a commitment to the release key. It enforces the time and caller conditions for state transitions. It does not call the AI verifier, inspect a PDF, establish identity, or decide whether an emergency is genuine.
+The contract stores the proof-manifest hash and wrapped-key commitment, never document bytes or raw keys. It enforces the owner, time, and proof-hash conditions for state transitions. It does not call the AI verifier, inspect a PDF, establish identity, or decide whether an emergency is genuine.
 
 ## Prototype key warning
 
-The current release transaction submits the matching key publicly on-chain. Anyone monitoring the network can observe transaction data. This is a demonstration mechanism only and must not be used for confidential evidence or production deployment. Threshold key custody or another independently reviewed release design is a prerequisite to real use.
+The release transaction submits only the proof hash; it reveals no document or AES key. The AES key is wrapped using an Argon2id key derived from the recipient's passphrase. The passphrase is not stored, and recovery is not available; the system remains a prototype and must not be used for real evidence.
 
 ## Validation
 

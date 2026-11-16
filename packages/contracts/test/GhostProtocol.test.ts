@@ -26,8 +26,7 @@ describe("GhostProtocol", function () {
 
   const payloadHash = ethers.keccak256(ethers.toUtf8Bytes("encrypted-payload"));
   const payloadCid = "bafybeighostprotocoltestpayload";
-  const releaseKey = ethers.toUtf8Bytes("local-demo-release-key");
-  const keyCommitment = ethers.keccak256(releaseKey);
+  const keyCommitment = ethers.keccak256(ethers.toUtf8Bytes("wrapped-key-commitment"));
 
   async function deploy() {
     [owner, oracle, user, stranger] = await ethers.getSigners();
@@ -79,8 +78,13 @@ describe("GhostProtocol", function () {
     expect(vault.state).to.equal(3n);
   });
 
-  it("triggers an expired vault and releases only the committed key", async function () {
+  it("requires the owner to release only after the proof hash matches", async function () {
     const vaultId = await createUserVault(HOUR, HOUR);
+
+    await expectRevert(
+      () => contract.connect(user).releaseVaultWithProof(vaultId, payloadHash),
+      "InvalidVaultState"
+    );
 
     await ethers.provider.send("evm_increaseTime", [2 * HOUR + 1]);
     await ethers.provider.send("evm_mine", []);
@@ -93,14 +97,22 @@ describe("GhostProtocol", function () {
     expect(vault.triggerEvidenceHash).to.equal(ethers.ZeroHash);
 
     await expectRevert(
-      () => contract.connect(stranger).releaseVault(vaultId, ethers.toUtf8Bytes("wrong-key")),
-      "InvalidReleaseKey"
+      () => contract.connect(stranger).releaseVaultWithProof(vaultId, payloadHash),
+      "NotVaultOwner"
+    );
+    await expectRevert(
+      () => contract.connect(user).releaseVaultWithProof(vaultId, ethers.ZeroHash),
+      "InvalidReleaseProof"
+    );
+    await expectRevert(
+      () => contract.connect(user).releaseVaultWithProof(vaultId, ethers.keccak256(ethers.toUtf8Bytes("wrong proof"))),
+      "ProofHashMismatch"
     );
 
-    await contract.connect(stranger).releaseVault(vaultId, releaseKey);
+    await contract.connect(user).releaseVaultWithProof(vaultId, payloadHash);
     vault = await contract.getVault(vaultId);
     expect(vault.state).to.equal(2n);
-    expect(vault.releaseKey).to.equal(ethers.hexlify(releaseKey));
+    expect(vault.payloadHash).to.equal(payloadHash);
   });
 
   it("allows the authorized oracle to trigger an active vault", async function () {

@@ -15,7 +15,7 @@ export type VaultRecord = {
   triggerEvidenceHash: string;
   state: VaultState;
   stateName: string;
-  releaseKeyAvailable: boolean;
+  documentReleased: boolean;
   deadline: bigint;
   expired: boolean;
 };
@@ -84,7 +84,7 @@ export class BlockchainService {
       triggerEvidenceHash: raw.triggerEvidenceHash,
       state,
       stateName: VAULT_STATE_NAMES[state] ?? "Unknown",
-      releaseKeyAvailable: Boolean(raw.releaseKey && raw.releaseKey !== "0x"),
+      documentReleased: state === VaultState.Released,
       deadline: BigInt(deadline),
       expired: Boolean(expired),
     };

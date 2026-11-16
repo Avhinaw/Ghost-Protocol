@@ -32,7 +32,7 @@ PORT=4000 CORS_ORIGIN=http://localhost:3000 \
 npm start
 ```
 
-The private key above is a public Hardhat development key. Use it only with the local chain. Never use it on Base Sepolia or mainnet.
+The private key above is a public Hardhat development key. Use it only with the local chain. Never use it on Base Sepolia or mainnet. Set `MONGODB_URI` in this terminal if you want to test the document upload flow; use a local/test database secret, not a credential pasted in chat.
 
 ### 4. Start the frontend
 
@@ -61,11 +61,11 @@ In MetaMask or another browser wallet, add a custom network with RPC URL `http:/
 
 ## Test the user flow
 
-Open **New vault**, select a small synthetic text file, choose `1 hour / local test` for both the check-in interval and grace period, then click **Create vault**. The browser encrypts the file, calculates the payload and key commitments, and asks the wallet to sign `createVault`.
+Open **New vault**, select a small synthetic binary or text file, choose `1 hour / local test` for both the check-in interval and grace period, then click **Commit vault**. The browser encrypts the file and filename/MIME metadata, computes the SHA-256 proof manifest, stages ciphertext in MongoDB, and asks the wallet to create a vault containing the proof hash and upload ID. The backend then verifies the mined `VaultCreated` event and marks the MongoDB record anchored.
 
-After the transaction confirms, the app routes to the vault detail page. Click **Send heartbeat** and confirm the wallet transaction. The detail page should update the last heartbeat and keep the vault in `Active` state. **Cancel vault** is also wired to the contract and requires a second confirmation in the browser.
+After the transaction and anchor step complete, the app routes to the vault detail page. Click **Send heartbeat** and confirm the wallet transaction. The detail page should update the last heartbeat and keep the vault in `Active` state. **Cancel vault** is also wired to the contract and requires a second confirmation in the browser. After the vault is `Triggered`, use **Verify proof, release & download**: the API rehashes the stored ciphertext, the owner signs the request and calls `releaseVaultWithProof`, and the browser decrypts only after the chain reaches `Released` and verifies the plaintext SHA-256.
 
-The current create flow uses a `local://` demo CID because IPFS credentials and production key custody are not configured yet. Do not use real evidence. The browser-held key is a prototype seam, not a production recovery system.
+The CID is `mongo://<uploadId>`; file bytes and filename/MIME metadata remain encrypted in MongoDB, not on-chain. The AES key is wrapped under an Argon2id-derived key from the passphrase entered at creation. Re-enter that passphrase after the vault is triggered; it is never sent to the backend or stored by the app. A forgotten passphrase cannot be recovered, and a weak passphrase may be guessed offline if MongoDB is stolen. Do not use real evidence.
 
 ## Test backend-driven trigger behavior
 
@@ -81,4 +81,4 @@ For a controlled local expiry test, use the contract package’s integration flo
 
 ## Known prototype boundaries
 
-The frontend is connected to the current contract and backend API, and the reviewer console uses the Python verifier through the Node service. IPFS upload and persistent key custody are not implemented; assessments are stored in memory and require the local prototype reviewer gate. The UI labels these boundaries explicitly rather than presenting the prototype as production-ready.
+The frontend is connected to the contract and backend API, and the reviewer console uses the Python verifier through the Node service. File storage is MongoDB-backed; the passphrase is user-held and not backed up. Assessments are stored in memory and require the local prototype reviewer gate. The UI labels these boundaries explicitly rather than presenting the prototype as production-ready.

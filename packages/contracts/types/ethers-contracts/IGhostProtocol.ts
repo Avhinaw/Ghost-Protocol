@@ -6,21 +6,21 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface IGhostProtocolInterface extends Interface {
-    getFunction(nameOrSignature: "cancelVault" | "checkAndTriggerExpired" | "createVault" | "releaseVault" | "sendHeartbeat" | "triggerViaOracle"): FunctionFragment;
+    getFunction(nameOrSignature: "cancelVault" | "checkAndTriggerExpired" | "createVault" | "releaseVaultWithProof" | "sendHeartbeat" | "triggerViaOracle"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "HeartbeatReceived" | "OracleAuthorizationUpdated" | "VaultCancelled" | "VaultCreated" | "VaultReleased" | "VaultTriggered"): EventFragment;
 
     encodeFunctionData(functionFragment: 'cancelVault', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'checkAndTriggerExpired', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'createVault', values: [BytesLike, string, BytesLike, BigNumberish, BigNumberish]): string;
-encodeFunctionData(functionFragment: 'releaseVault', values: [BigNumberish, BytesLike]): string;
+encodeFunctionData(functionFragment: 'releaseVaultWithProof', values: [BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'sendHeartbeat', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'triggerViaOracle', values: [BigNumberish, BytesLike]): string;
 
     decodeFunctionResult(functionFragment: 'cancelVault', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'checkAndTriggerExpired', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'createVault', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'releaseVault', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'releaseVaultWithProof', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'sendHeartbeat', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'triggerViaOracle', data: BytesLike): Result;
   }
@@ -156,8 +156,8 @@ decodeFunctionResult(functionFragment: 'triggerViaOracle', data: BytesLike): Res
     
 
     
-    releaseVault: TypedContractMethod<
-      [vaultId: BigNumberish, releaseKey: BytesLike, ],
+    releaseVaultWithProof: TypedContractMethod<
+      [vaultId: BigNumberish, proofHash: BytesLike, ],
       [void],
       'nonpayable'
     >
@@ -197,8 +197,8 @@ getFunction(nameOrSignature: 'createVault'): TypedContractMethod<
       [bigint],
       'nonpayable'
     >;
-getFunction(nameOrSignature: 'releaseVault'): TypedContractMethod<
-      [vaultId: BigNumberish, releaseKey: BytesLike, ],
+getFunction(nameOrSignature: 'releaseVaultWithProof'): TypedContractMethod<
+      [vaultId: BigNumberish, proofHash: BytesLike, ],
       [void],
       'nonpayable'
     >;

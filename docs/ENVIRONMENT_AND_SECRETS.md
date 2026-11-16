@@ -2,21 +2,21 @@
 
 Configure each service from its own package working directory. Do not commit `.env` files or real credentials. The contract, oracle, reviewer, and AI settings below are for local development unless explicitly described otherwise.
 
-## Current Base Sepolia deployment
+## Base Sepolia deployment
 
-The current test deployment is on Base Sepolia (chain ID `84532`):
+The earlier deployment is on Base Sepolia (chain ID `84532`) but is incompatible with the new proof-release flow:
 
 | Setting | Value |
 |---|---|
-| Contract address | `0x4B58BEEA180668b0bc80f8B1B6390E08d21003a1` |
+| Legacy contract address | `0x4B58BEEA180668b0bc80f8B1B6390E08d21003a1` |
 | Frontend origin | `https://ghost-protocol-asf.pages.dev` |
 | Base Sepolia RPC | `https://sepolia.base.org` |
 
-Use the contract address, RPC, and frontend origin in the Render backend environment. Set `ORACLE_PRIVATE_KEY` there as a secret for a wallet authorized by the contract; do not put it in this repository or any `VITE_` variable. The backend template at `packages/backend-ai/node-oracle/.env.example` contains these public deployment settings.
+Deploy the updated contract to Base Sepolia and use its new address for the backend and frontend. Do not configure the legacy address for the updated backend: its tuple and release ABI are incompatible, and existing vaults cannot be migrated automatically. Set `ORACLE_PRIVATE_KEY` in Render only as a secret for a wallet authorized by the new contract; do not put it in this repository or any `VITE_` variable.
 
-The Cloudflare Pages frontend should be rebuilt with `VITE_BACKEND_URL=https://ghost-protocol-4dcu.onrender.com`, `VITE_CHAIN_ID=84532`, and (optionally) `VITE_CONTRACT_ADDRESS` set to the address above. The frontend defaults to the current Render backend URL; `VITE_BACKEND_URL` can override it for other deployments.
+The Cloudflare Pages frontend should be rebuilt with `VITE_BACKEND_URL=https://ghost-protocol-4dcu.onrender.com`, `VITE_CHAIN_ID=84532`, and `VITE_CONTRACT_ADDRESS` set to the new address. The frontend defaults to the Render backend URL; `VITE_BACKEND_URL` can override it for other deployments.
 
-The Node backend stores wallet and encrypted vault-file records in MongoDB when `MONGODB_URI` is configured. File bytes are encrypted in the browser, then the backend verifies both the AES ciphertext hash against the contract and the wallet signature against the on-chain vault owner before storing them. AI assessments remain in memory and expire; they are not persisted to MongoDB.
+The Node backend stores wallet and staged/anchored encrypted vault-file records in MongoDB when `MONGODB_URI` is configured. The backend verifies the signed proof manifest before staging, then verifies the on-chain vault and transaction receipt before anchoring. AI assessments remain in memory and expire; they are not persisted to MongoDB.
 
 Never put a MongoDB URI in source code, frontend variables, chat, or a committed file. If a URI/password has been shared, rotate the database user's password and update Render's secret environment setting.
 
@@ -54,7 +54,7 @@ Never place AI credentials, reviewer tokens, or oracle keys in frontend `VITE_` 
 | Variable | Purpose |
 |---|---|
 | `VITE_BACKEND_URL` | Node oracle HTTP API base URL; defaults to the current Render backend; local: `http://127.0.0.1:4000` |
-| `VITE_CONTRACT_ADDRESS` | Optional fallback; current Base Sepolia deployment address |
+| `VITE_CONTRACT_ADDRESS` | New proof-release deployment address; required for the local reviewer console |
 | `VITE_CHAIN_ID` | Expected EVM chain ID; local: `31337`, Base Sepolia: `84532` |
 | `JWT_SECRET` | Server-side session signing secret; set a random local value to enable the development reviewer session |
 

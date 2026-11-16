@@ -7,6 +7,8 @@ import { AssessmentRegistry } from "./assessment-registry.js";
 import type { AiVerifier } from "./ai-verifier.js";
 import { BlockchainService, type VaultRecord } from "./blockchain-service.js";
 import type { VaultStore } from "./mongo-vault-store.js";
+import type { VaultFileModel } from "./models.js";
+import { computeEncryptedPayloadHash, computeProofHash } from "./vault-proof.js";
 
 const triggerBodySchema = z.object({
   evidenceHash: z.string().regex(/^0x[a-fA-F0-9]{64}$/).optional(),
@@ -28,47 +30,67 @@ const reviewedTriggerBodySchema = z.object({
   reviewerApproval: z.literal(true),
   reviewerToken: z.string().min(16),
 });
+const stageUploadBodySchema = z.object({
+  uploadId: z.string().uuid(),
+  plaintextSha256: z.string().regex(/^0x[a-fA-F0-9]{64}$/),
+  encryptedPayloadSha256: z.string().regex(/^0x[a-fA-F0-9]{64}$/),
+  encryptedMetadataSha256: z.string().regex(/^0x[a-fA-F0-9]{64}$/),
+  proofHash: z.string().regex(/^0x[a-fA-F0-9]{64}$/),
+  keyCommitment: z.string().regex(/^0x[a-fA-F0-9]{64}$/),
+  iv: z.string(),
+  metadataIv: z.string(),
+  encryptedMetadata: z.string(),
+  wrappedKey: z.string(),
+  signature: z.string().min(1),
+});
+const anchorUploadBodySchema = z.object({
+  vaultId: z.string().regex(/^[1-9]\d*$/),
+  transactionHash: z.string().regex(/^0x[a-fA-F0-9]{64}$/),
+});
 
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 8 * 1024 * 1024, files: 1 },
 });
-const encryptedFileUpload = multer({
+const stagedFileUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 8 * 1024 * 1024 + 16, files: 1 },
 });
 
 class BadRequestError extends Error {}
 
+export function stagedUploadSignatureMessage(
+  chainId: string,
+  contractAddress: string,
+  uploadId: string,
+  payloadHash: string,
+  keyCommitment: string,
+): string {
+  return [
+    "Ghost Protocol staged encrypted file",
+    `chainId: ${chainId}`,
+    `contractAddress: ${contractAddress.toLowerCase()}`,
+    `uploadId: ${uploadId}`,
+    `proofHash: ${payloadHash.toLowerCase()}`,
+    `keyCommitment: ${keyCommitment.toLowerCase()}`,
+  ].join("\n");
+}
+
 export function vaultFileSignatureMessage(
-  action: "upload" | "download",
+  action: "verify" | "download",
   chainId: string,
   contractAddress: string,
   vaultId: string,
-  payloadHash: string,
-  uploadMetadata?: { fileName: string; iv: string; contentType: string },
+  proofHash: string,
 ): string {
-  const message = [
-    "Ghost Protocol encrypted vault file",
+  return [
+    "Ghost Protocol vault file access",
     `action: ${action}`,
     `chainId: ${chainId}`,
     `contractAddress: ${contractAddress.toLowerCase()}`,
     `vaultId: ${vaultId}`,
-    `payloadHash: ${payloadHash.toLowerCase()}`,
-  ];
-  if (action === "upload" && uploadMetadata) {
-    message.push(
-      `fileName: ${uploadMetadata.fileName}`,
-      `iv: ${uploadMetadata.iv}`,
-      `contentType: ${uploadMetadata.contentType}`,
-    );
-  }
-  return message.join("\n");
-}
-
-function safeFileName(fileName: string): string {
-  const normalized = fileName.replace(/[\\/]/g, "_").replace(/[\u0000-\u001f\u007f]/g, "").trim();
-  return (normalized || "encrypted-payload").slice(0, 180);
+    `proofHash: ${proofHash.toLowerCase()}`,
+  ].join("\n");
 }
 
 function parseVaultId(value: string): bigint {
@@ -90,6 +112,44 @@ function getVaultIdParam(request: Request): bigint {
   return parseVaultId(value);
 }
 
+function validBase64(value: string, minimumBytes: number, maximumBytes: number): Buffer | null {
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(value)) return null;
+  const bytes = Buffer.from(value, "base64");
+  return bytes.length >= minimumBytes && bytes.length <= maximumBytes && bytes.toString("base64") === value
+    ? bytes
+    : null;
+}
+
+function verifyStoredProof(file: VaultFileModel, vault: VaultRecord): string | null {
+  if (file.status !== "ANCHORED" || file.vaultId !== vault.id.toString()) {
+    return "Stored upload has not been anchored to this vault";
+  }
+  if (
+    file.ownerAddress.toLowerCase() !== vault.owner.toLowerCase() ||
+    file.proofHash.toLowerCase() !== vault.payloadHash.toLowerCase() ||
+    file.keyCommitment.toLowerCase() !== vault.keyCommitment.toLowerCase() ||
+    vault.payloadCid !== `mongo://${file.uploadId}`
+  ) {
+    return "Stored proof metadata does not match the on-chain vault";
+  }
+  if (keccak256(file.wrappedKey).toLowerCase() !== file.keyCommitment.toLowerCase()) {
+    return "Wrapped key does not match its committed hash";
+  }
+  if (computeEncryptedPayloadHash(file.iv, file.encryptedData).toLowerCase() !== file.encryptedPayloadSha256.toLowerCase()) {
+    return "Stored encrypted bytes do not match their SHA-256 digest";
+  }
+  if (
+    computeEncryptedPayloadHash(file.metadataIv, file.encryptedMetadata).toLowerCase() !==
+    file.encryptedMetadataSha256.toLowerCase()
+  ) {
+    return "Stored encrypted file metadata does not match its SHA-256 digest";
+  }
+  if (computeProofHash(file).toLowerCase() !== file.proofHash.toLowerCase()) {
+    return "Stored proof manifest does not match its SHA-256 digest";
+  }
+  return null;
+}
+
 function serializeVault(vault: VaultRecord) {
   return {
     id: vault.id.toString(),
@@ -105,7 +165,7 @@ function serializeVault(vault: VaultRecord) {
     triggerEvidenceHash: vault.triggerEvidenceHash,
     state: vault.state,
     stateName: vault.stateName,
-    releaseKeyAvailable: vault.releaseKeyAvailable,
+    documentReleased: vault.documentReleased,
     deadline: vault.deadline.toString(),
     expired: vault.expired,
   };
@@ -173,7 +233,7 @@ export function createApp(
     }
   });
 
-  app.post("/api/v1/vaults/:vaultId/file", encryptedFileUpload.single("file"), async (request, response, next) => {
+  app.post("/api/v1/uploads", stagedFileUpload.single("file"), async (request, response, next) => {
     try {
       if (!vaultStore) {
         response.status(503).json({ error: "Encrypted file storage is not configured" });
@@ -183,41 +243,207 @@ export function createApp(
         response.status(400).json({ error: "A single encrypted file is required" });
         return;
       }
+      const body = stageUploadBodySchema.parse(request.body ?? {});
+      const ivBytes = validBase64(body.iv, 12, 12);
+      const metadataIvBytes = validBase64(body.metadataIv, 12, 12);
+      const encryptedMetadata = validBase64(body.encryptedMetadata, 16, 4096);
+      const wrappedKey = validBase64(body.wrappedKey, 80, 80);
+      if (!ivBytes || !metadataIvBytes || !encryptedMetadata || !wrappedKey || wrappedKey.toString("ascii", 0, 4) !== "GPK1") {
+        response.status(400).json({ error: "AES-GCM IVs, encrypted metadata, or Argon2id-wrapped key package are invalid" });
+        return;
+      }
+      if (request.file.buffer.length < 16) {
+        response.status(400).json({ error: "Encrypted AES-GCM payload is missing its authentication tag" });
+        return;
+      }
+      const encryptedPayloadSha256 = computeEncryptedPayloadHash(body.iv, request.file.buffer);
+      if (encryptedPayloadSha256.toLowerCase() !== body.encryptedPayloadSha256.toLowerCase()) {
+        response.status(409).json({ error: "Encrypted upload does not match its SHA-256 digest" });
+        return;
+      }
+      const encryptedMetadataSha256 = computeEncryptedPayloadHash(body.metadataIv, encryptedMetadata);
+      if (encryptedMetadataSha256.toLowerCase() !== body.encryptedMetadataSha256.toLowerCase()) {
+        response.status(409).json({ error: "Encrypted file metadata does not match its SHA-256 digest" });
+        return;
+      }
+      if (keccak256(wrappedKey).toLowerCase() !== body.keyCommitment.toLowerCase()) {
+        response.status(409).json({ error: "Recipient key package does not match its key commitment" });
+        return;
+      }
+      const manifest = {
+        plaintextSha256: body.plaintextSha256,
+        encryptedPayloadSha256,
+        encryptedMetadataSha256,
+        iv: body.iv,
+        metadataIv: body.metadataIv,
+        keyCommitment: body.keyCommitment,
+      };
+      const proofHash = computeProofHash(manifest);
+      if (proofHash.toLowerCase() !== body.proofHash.toLowerCase()) {
+        response.status(409).json({ error: "Proof manifest does not match its SHA-256 digest" });
+        return;
+      }
+      const chainId = (await service.chainId()).toString();
+      let ownerAddress: string;
+      try {
+        ownerAddress = verifyMessage(
+          stagedUploadSignatureMessage(
+            chainId,
+            service.contractAddress,
+            body.uploadId,
+            proofHash,
+            body.keyCommitment,
+          ),
+          body.signature,
+        ).toLowerCase();
+      } catch {
+        response.status(401).json({ error: "Wallet signature is invalid" });
+        return;
+      }
+      await vaultStore.stageVaultFile({
+        uploadId: body.uploadId,
+        chainId,
+        contractAddress: service.contractAddress,
+        ownerAddress,
+        plaintextSha256: body.plaintextSha256.toLowerCase(),
+        encryptedPayloadSha256,
+        encryptedMetadataSha256,
+        proofHash,
+        keyCommitment: body.keyCommitment.toLowerCase(),
+        iv: body.iv,
+        metadataIv: body.metadataIv,
+        encryptedData: request.file.buffer,
+        encryptedMetadata,
+        wrappedKey,
+        status: "PENDING_ANCHOR",
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      });
+      response.status(201).json({
+        uploadId: body.uploadId,
+        ownerAddress,
+        proofHash,
+        status: "PENDING_ANCHOR",
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/v1/uploads/:uploadId/anchor", async (request, response, next) => {
+    try {
+      if (!vaultStore) {
+        response.status(503).json({ error: "Encrypted file storage is not configured" });
+        return;
+      }
+      const uploadId = request.params.uploadId;
+      if (typeof uploadId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(uploadId)) {
+        response.status(400).json({ error: "uploadId must be a UUID" });
+        return;
+      }
+      const body = anchorUploadBodySchema.parse(request.body ?? {});
+      const stagedFile = await vaultStore.getVaultFileByUploadId(uploadId);
+      if (!stagedFile) {
+        response.status(404).json({ error: "Staged upload was not found or has expired" });
+        return;
+      }
+      const vaultId = parseVaultId(body.vaultId);
+      const vault = await service.getVault(vaultId);
+      const chainId = (await service.chainId()).toString();
+      if (
+        stagedFile.chainId !== chainId ||
+        stagedFile.status !== "PENDING_ANCHOR" ||
+        stagedFile.ownerAddress.toLowerCase() !== vault.owner.toLowerCase() ||
+        stagedFile.proofHash.toLowerCase() !== vault.payloadHash.toLowerCase() ||
+        stagedFile.keyCommitment.toLowerCase() !== vault.keyCommitment.toLowerCase() ||
+        vault.payloadCid !== `mongo://${uploadId}`
+      ) {
+        response.status(409).json({ error: "On-chain vault does not match this staged upload" });
+        return;
+      }
+      const receipt = await service.provider.getTransactionReceipt(body.transactionHash);
+      if (!receipt || receipt.status !== 1 || receipt.to?.toLowerCase() !== service.contractAddress.toLowerCase()) {
+        response.status(409).json({ error: "Vault creation transaction is not confirmed for this contract" });
+        return;
+      }
+      let matchingCreationEvent = false;
+      for (const log of receipt.logs) {
+        if (log.address.toLowerCase() !== service.contractAddress.toLowerCase()) continue;
+        try {
+          const event = service.contract.interface.parseLog(log);
+          if (
+            event?.name === "VaultCreated" &&
+            BigInt(event.args.vaultId) === vaultId &&
+            String(event.args.owner).toLowerCase() === vault.owner.toLowerCase() &&
+            String(event.args.payloadHash).toLowerCase() === stagedFile.proofHash.toLowerCase()
+          ) {
+            matchingCreationEvent = true;
+            break;
+          }
+        } catch {
+          continue;
+        }
+      }
+      if (!matchingCreationEvent) {
+        response.status(409).json({ error: "Transaction does not contain the matching VaultCreated event" });
+        return;
+      }
+      const anchored = await vaultStore.anchorVaultFile({
+        uploadId,
+        vaultId: vaultId.toString(),
+        anchorTxHash: receipt.hash,
+        anchorBlockNumber: receipt.blockNumber,
+      });
+      if (!anchored) {
+        const existing = await vaultStore.getVaultFileByUploadId(uploadId);
+        if (
+          existing?.status !== "ANCHORED" ||
+          existing.vaultId !== vaultId.toString() ||
+          existing.anchorTxHash?.toLowerCase() !== receipt.hash.toLowerCase()
+        ) {
+          response.status(409).json({ error: "Staged upload has already been anchored differently" });
+          return;
+        }
+      }
+      response.status(200).json({
+        uploadId,
+        vaultId: vaultId.toString(),
+        transactionHash: receipt.hash,
+        blockNumber: receipt.blockNumber,
+        status: "ANCHORED",
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/api/v1/vaults/:vaultId/proof", async (request, response, next) => {
+    try {
+      if (!vaultStore) {
+        response.status(503).json({ error: "Encrypted file storage is not configured" });
+        return;
+      }
       const vaultId = getVaultIdParam(request);
       const vault = await service.getVault(vaultId);
       const chainId = (await service.chainId()).toString();
-      const payloadHash = keccak256(request.file.buffer);
-      if (payloadHash.toLowerCase() !== vault.payloadHash.toLowerCase()) {
-        response.status(409).json({ error: "Encrypted file hash does not match the on-chain payload hash" });
+      const file = await vaultStore.getVaultFile(chainId, service.contractAddress, vaultId.toString());
+      if (!file) {
+        response.status(404).json({ error: "Anchored encrypted file was not found" });
         return;
       }
-      const expectedCid = `mongo://${payloadHash.slice(2).toLowerCase()}`;
-      if (vault.payloadCid !== expectedCid) {
-        response.status(409).json({ error: "Vault does not reference MongoDB-backed encrypted storage" });
+      const integrityError = verifyStoredProof(file, vault);
+      if (integrityError) {
+        response.status(409).json({ error: integrityError });
         return;
       }
-      const iv = request.body?.iv;
-      const signature = request.body?.signature;
-      const contentType = typeof request.body?.contentType === "string"
-        ? request.body.contentType.slice(0, 160) || "application/octet-stream"
-        : "application/octet-stream";
-      if (typeof iv !== "string" || !/^[A-Za-z0-9+/]{16}$/.test(iv) || Buffer.from(iv, "base64").length !== 12) {
-        response.status(400).json({ error: "A valid 12-byte AES-GCM IV is required" });
+      const signature = request.header("x-wallet-signature");
+      if (!signature) {
+        response.status(401).json({ error: "Owner wallet signature is required" });
         return;
       }
-      if (typeof signature !== "string") {
-        response.status(401).json({ error: "Wallet signature is required" });
-        return;
-      }
-      const fileName = safeFileName(request.file.originalname);
       let signerAddress: string;
       try {
         signerAddress = verifyMessage(
-          vaultFileSignatureMessage("upload", chainId, service.contractAddress, vaultId.toString(), payloadHash, {
-            fileName: request.file.originalname,
-            iv,
-            contentType,
-          }),
+          vaultFileSignatureMessage("verify", chainId, service.contractAddress, vaultId.toString(), file.proofHash),
           signature,
         ).toLowerCase();
       } catch {
@@ -225,26 +451,21 @@ export function createApp(
         return;
       }
       if (signerAddress !== vault.owner.toLowerCase()) {
-        response.status(403).json({ error: "Only the on-chain vault owner can store its encrypted file" });
+        response.status(403).json({ error: "Only the vault owner can verify and release this file" });
         return;
       }
-      await vaultStore.saveVaultFile({
-        chainId,
-        contractAddress: service.contractAddress,
-        vaultId: vaultId.toString(),
-        ownerAddress: vault.owner,
-        fileName,
-        contentType,
-        payloadHash,
-        iv,
-        encryptedData: request.file.buffer,
-      });
-      response.status(201).json({
-        vaultId: vaultId.toString(),
-        ownerAddress: vault.owner,
-        fileName,
-        payloadHash,
-        stored: true,
+      if (vault.stateName !== "Triggered" && vault.stateName !== "Released") {
+        response.status(409).json({ error: "Vault must be Triggered before the proof can be released" });
+        return;
+      }
+      response.json({
+        verified: true,
+        proofHash: file.proofHash,
+        plaintextSha256: file.plaintextSha256,
+        encryptedPayloadSha256: file.encryptedPayloadSha256,
+        encryptedMetadataSha256: file.encryptedMetadataSha256,
+        keyCommitment: file.keyCommitment,
+        status: vault.stateName,
       });
     } catch (error) {
       next(error);
@@ -258,41 +479,56 @@ export function createApp(
         return;
       }
       const vaultId = getVaultIdParam(request);
-      const chainId = (await service.chainId()).toString();
       const vault = await service.getVault(vaultId);
-      const file = await vaultStore.getVaultFile(chainId, service.contractAddress, vaultId.toString());
-      if (!file) {
-        response.status(404).json({ error: "Encrypted file was not found" });
+      if (vault.stateName !== "Released") {
+        response.status(403).json({ error: "Document can only be downloaded after its proof has been released on-chain" });
         return;
       }
-      if (file.payloadHash.toLowerCase() !== vault.payloadHash.toLowerCase()) {
-        response.status(409).json({ error: "Stored file no longer matches the on-chain payload hash" });
+      const chainId = (await service.chainId()).toString();
+      const file = await vaultStore.getVaultFile(chainId, service.contractAddress, vaultId.toString());
+      if (!file) {
+        response.status(404).json({ error: "Anchored encrypted file was not found" });
+        return;
+      }
+      const integrityError = verifyStoredProof(file, vault);
+      if (integrityError) {
+        response.status(409).json({ error: integrityError });
         return;
       }
       const signature = request.header("x-wallet-signature");
       if (!signature) {
-        response.status(401).json({ error: "Wallet signature is required" });
+        response.status(401).json({ error: "Owner wallet signature is required" });
         return;
       }
       let signerAddress: string;
       try {
         signerAddress = verifyMessage(
-          vaultFileSignatureMessage("download", chainId, service.contractAddress, vaultId.toString(), file.payloadHash),
+          vaultFileSignatureMessage("download", chainId, service.contractAddress, vaultId.toString(), file.proofHash),
           signature,
         ).toLowerCase();
       } catch {
         response.status(401).json({ error: "Wallet signature is invalid" });
         return;
       }
-      if (signerAddress !== file.ownerAddress.toLowerCase() || signerAddress !== vault.owner.toLowerCase()) {
-        response.status(403).json({ error: "Only the on-chain vault owner can access its encrypted file" });
+      if (signerAddress !== vault.owner.toLowerCase()) {
+        response.status(403).json({ error: "Only the vault owner can download this file" });
         return;
       }
-      response.setHeader("Content-Type", "application/octet-stream");
-      response.setHeader("Content-Disposition", `attachment; filename*=UTF-8''${encodeURIComponent(file.fileName)}`);
-      response.setHeader("X-Encrypted-File-IV", file.iv);
-      response.setHeader("X-Original-Content-Type", encodeURIComponent(file.contentType));
-      response.send(file.encryptedData);
+      response.json({
+        uploadId: file.uploadId,
+        vaultId: file.vaultId,
+        ownerAddress: file.ownerAddress,
+        plaintextSha256: file.plaintextSha256,
+        encryptedPayloadSha256: file.encryptedPayloadSha256,
+        encryptedMetadataSha256: file.encryptedMetadataSha256,
+        proofHash: file.proofHash,
+        keyCommitment: file.keyCommitment,
+        iv: file.iv,
+        metadataIv: file.metadataIv,
+        encryptedData: file.encryptedData.toString("base64"),
+        encryptedMetadata: file.encryptedMetadata.toString("base64"),
+        wrappedKey: file.wrappedKey.toString("base64"),
+      });
     } catch (error) {
       next(error);
     }

@@ -235,12 +235,12 @@
         "type": "uint256"
       },
       {
-        "internalType": "bytes",
-        "name": "releaseKey",
-        "type": "bytes"
+        "internalType": "bytes32",
+        "name": "proofHash",
+        "type": "bytes32"
       }
     ],
-    "name": "releaseVault",
+    "name": "releaseVaultWithProof",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

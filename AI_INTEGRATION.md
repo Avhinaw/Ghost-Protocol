@@ -40,16 +40,16 @@ REVIEWER_APPROVAL_TOKEN=local-review-token-123456 npm run ai:local-flow
 
 The script proves a synthetic assessment is stored, an invalid reviewer token is rejected, an explicit review is accepted, and only then does the local vault reach `Triggered`.
 
-## Complete document-to-release test
+## Complete synthetic review-to-proof-release test
 
-With the local chain and mock verifier still running, the full test uploads a synthetic text document through the Node gateway, stores its AI assessment, proves that an invalid reviewer token is blocked, records explicit reviewer approval, relays the oracle trigger, and manually supplies the matching committed release key:
+With the local chain and mock verifier still running, the test uploads a synthetic text document through the Node gateway, stores its AI assessment, proves that an invalid reviewer token is blocked, records explicit reviewer approval, relays the oracle trigger, and submits the matching proof hash:
 
 ```bash
 cd packages/backend-ai/node-oracle
 REVIEWER_APPROVAL_TOKEN=local-review-token-123456 npm run complete:local-flow
 ```
 
-The expected final state is `Released`. This verifies the complete prototype lifecycle, not production-grade custody or identity verification.
+The expected final state is `Released`. This script tests the reviewer/contract state transition; the staged MongoDB upload, proof preflight, release-gated download, and client decryption are covered by the backend API tests and frontend vault flow. Neither test represents production-grade custody or identity verification.
 
 ## Live mode
 

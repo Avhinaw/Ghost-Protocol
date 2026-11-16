@@ -4,15 +4,23 @@ import type { VaultFileModel, WalletModel } from "./models.js";
 type WalletDocument = WalletModel & { _id: string };
 type VaultFileDocument = VaultFileModel & { _id: string };
 
-export type SaveVaultFileInput = Omit<VaultFileModel, "createdAt" | "updatedAt">;
+export type StageVaultFileInput = Omit<VaultFileModel, "createdAt" | "updatedAt">;
 
 export interface VaultStore {
-  saveVaultFile(file: SaveVaultFileInput): Promise<void>;
+  stageVaultFile(file: StageVaultFileInput): Promise<void>;
+  anchorVaultFile(input: {
+    uploadId: string;
+    vaultId: string;
+    anchorTxHash: string;
+    anchorBlockNumber: number;
+  }): Promise<boolean>;
+  getVaultFileByUploadId(uploadId: string): Promise<VaultFileModel | null>;
   getVaultFile(chainId: string, contractAddress: string, vaultId: string): Promise<VaultFileModel | null>;
 }
 
 export class MongoVaultStore implements VaultStore {
   private readonly client: MongoClient;
+  private readonly databaseName: string;
   private wallets!: Collection<WalletDocument>;
   private vaultFiles!: Collection<VaultFileDocument>;
 
@@ -21,8 +29,6 @@ export class MongoVaultStore implements VaultStore {
     this.databaseName = databaseName;
   }
 
-  private readonly databaseName: string;
-
   async connect(): Promise<void> {
     await this.client.connect();
     const database: Db = this.client.db(this.databaseName);
@@ -30,8 +36,12 @@ export class MongoVaultStore implements VaultStore {
     this.vaultFiles = database.collection<VaultFileDocument>("vault_files");
     await Promise.all([
       this.wallets.createIndex({ address: 1 }, { unique: true }),
-      this.vaultFiles.createIndex({ chainId: 1, contractAddress: 1, vaultId: 1 }, { unique: true }),
+      this.vaultFiles.createIndex(
+        { chainId: 1, contractAddress: 1, vaultId: 1 },
+        { unique: true, partialFilterExpression: { vaultId: { $type: "string" } } },
+      ),
       this.vaultFiles.createIndex({ ownerAddress: 1, updatedAt: -1 }),
+      this.vaultFiles.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
     ]);
   }
 
@@ -39,23 +49,49 @@ export class MongoVaultStore implements VaultStore {
     await this.client.close();
   }
 
-  async saveVaultFile(file: SaveVaultFileInput): Promise<void> {
+  async stageVaultFile(file: StageVaultFileInput): Promise<void> {
     const now = new Date();
     const walletAddress = file.ownerAddress.toLowerCase();
-    const id = this.vaultFileId(file.chainId, file.contractAddress, file.vaultId);
     await this.wallets.updateOne(
       { _id: walletAddress },
       { $set: { address: walletAddress, updatedAt: now }, $setOnInsert: { createdAt: now } },
       { upsert: true },
     );
-    await this.vaultFiles.updateOne(
-      { _id: id },
+    await this.vaultFiles.insertOne({
+      ...file,
+      _id: file.uploadId,
+      contractAddress: file.contractAddress.toLowerCase(),
+      ownerAddress: walletAddress,
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+
+  async anchorVaultFile(input: {
+    uploadId: string;
+    vaultId: string;
+    anchorTxHash: string;
+    anchorBlockNumber: number;
+  }): Promise<boolean> {
+    const result = await this.vaultFiles.updateOne(
+      { _id: input.uploadId, status: "PENDING_ANCHOR" },
       {
-        $set: { ...file, contractAddress: file.contractAddress.toLowerCase(), ownerAddress: walletAddress, updatedAt: now },
-        $setOnInsert: { createdAt: now },
+        $set: {
+          vaultId: input.vaultId,
+          anchorTxHash: input.anchorTxHash,
+          anchorBlockNumber: input.anchorBlockNumber,
+          status: "ANCHORED",
+          updatedAt: new Date(),
+        },
+        $unset: { expiresAt: "" },
       },
-      { upsert: true },
     );
+    return result.modifiedCount === 1;
+  }
+
+  async getVaultFileByUploadId(uploadId: string): Promise<VaultFileModel | null> {
+    const record = await this.vaultFiles.findOne({ _id: uploadId });
+    return record ? this.withoutMongoId(record) : null;
   }
 
   async getVaultFile(
@@ -64,14 +100,16 @@ export class MongoVaultStore implements VaultStore {
     vaultId: string,
   ): Promise<VaultFileModel | null> {
     const record = await this.vaultFiles.findOne({
-      _id: this.vaultFileId(chainId, contractAddress, vaultId),
+      chainId,
+      contractAddress: contractAddress.toLowerCase(),
+      vaultId,
+      status: "ANCHORED",
     });
-    if (!record) return null;
-    const { _id: _ignored, ...file } = record;
-    return file;
+    return record ? this.withoutMongoId(record) : null;
   }
 
-  private vaultFileId(chainId: string, contractAddress: string, vaultId: string): string {
-    return `${chainId}:${contractAddress.toLowerCase()}:${vaultId}`;
+  private withoutMongoId(record: VaultFileDocument): VaultFileModel {
+    const { _id: _ignored, ...file } = record;
+    return file;
   }
 }

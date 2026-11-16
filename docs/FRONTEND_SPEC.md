@@ -15,9 +15,9 @@ The browser signs owner actions with the user's wallet. It does not receive the 
 
 ## Encryption and storage boundaries
 
-The create flow encrypts files in the browser using AES-GCM and computes the values needed for vault creation. The current storage integration uses a `local://` demo CID; it does not upload to IPFS or Arweave. The prototype release-key flow is not secure key custody. Do not use real evidence or depend on this for recovery.
+The create flow encrypts arbitrary binary files and filename/MIME metadata in the browser using AES-256-GCM, hashes the plaintext and both encrypted payloads, and builds a canonical proof-v2 manifest. It stages ciphertext, encrypted metadata, and the Argon2id/passphrase-wrapped AES key in MongoDB before creating a vault with a `mongo://<uploadId>` CID and the proof hash. Once the vault is `Triggered`, the owner verifies the stored proof and calls `releaseVaultWithProof`; after the chain reports `Released`, the backend returns only encrypted data and the browser decrypts and rechecks the plaintext SHA-256. The passphrase stays in browser memory only and has no reset/recovery flow. Do not use real evidence.
 
-Before any public deployment, the project needs a reviewed key-release design, real encrypted-payload storage, durable and access-controlled reviewer records, and validated deployment configuration. Scanned-document OCR and production reviewer authentication are also not provided.
+Before any real evidence use, the project needs a reviewed recipient recovery plan, durable and access-controlled reviewer records, and validated deployment configuration. Stolen encrypted records can be attacked offline if the passphrase is weak. Scanned-document OCR and production reviewer authentication are also not provided. The proof-release contract requires a new deployment; it is incompatible with the old raw-key contract.
 
 ## Local checks
 

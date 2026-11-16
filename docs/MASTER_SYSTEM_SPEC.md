@@ -13,15 +13,19 @@ The Python verifier returns a structured evidence assessment only. It cannot sig
 
 ```text
 Browser
-  ├─ encrypt selected payload locally
-  ├─ use current local:// demo CID
-  └─ sign owner actions with connected wallet
+  ├─ AES-GCM encrypt arbitrary binary file
+  ├─ hash plaintext/ciphertext proof manifest
+  ├─ stage ciphertext and wrapped key in MongoDB
+  └─ sign owner chain and proof actions with connected wallet
            │
            ├──────────────► GhostProtocol.sol
-           │                 vault state, heartbeats, trigger permissions
+           │                 vault state, proof hash, heartbeats, release gate
            ▼
 Node oracle API
   ├─ reads vaults and contract configuration
+  ├─ verifies staged upload and on-chain anchor
+  ├─ verifies MongoDB bytes before owner proof release
+  ├─ returns encrypted bytes only after chain release
   ├─ sends submitted text/PDF to Python service
   ├─ temporarily stores assessment in memory
   └─ relays oracle trigger after reviewer approval
@@ -33,8 +37,8 @@ Python FastAPI verifier
 
 ## Implemented and not implemented
 
-Implemented for local synthetic use: contract lifecycle, frontend wallet flows, Node vault APIs and expiry worker, Python structured assessment, reviewer approval gate, and a synthetic document-to-contract flow.
+Implemented for local synthetic use: proof-hash contract lifecycle, browser encryption, MongoDB staged/anchored ciphertext API, frontend wallet flows, expiry worker, Python structured assessment, and reviewer approval gate.
 
-Not implemented: production key custody, actual IPFS/Arweave uploads, OCR for scanned PDFs, news retrieval/RAG, durable assessment storage, production reviewer identities/audit records, and production oracle operations.
+Not implemented: recipient passphrase recovery, IPFS/Arweave uploads, OCR for scanned PDFs, news retrieval/RAG, durable assessment storage, production reviewer identities/audit records, and production oracle operations.
 
-The local prototype's release-key transaction is public on-chain. Never store real evidence or use this system to rely on confidential or guaranteed future publication. See the package specifications and [ENVIRONMENT_AND_SECRETS.md](./ENVIRONMENT_AND_SECRETS.md) before local setup.
+The release transaction exposes only a proof hash. The service never receives the recipient passphrase, but has no recovery path for it and stolen ciphertext permits offline passphrase guessing. Never store real evidence or rely on this system for confidential or guaranteed future publication. The proof-release contract is incompatible with the earlier raw-key deployment and must be deployed to a new address. See the package specifications and [ENVIRONMENT_AND_SECRETS.md](./ENVIRONMENT_AND_SECRETS.md) before setup.

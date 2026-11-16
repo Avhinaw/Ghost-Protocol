@@ -10,17 +10,17 @@ import * as Contracts from "./index.js";
 
 declare module "@nomicfoundation/hardhat-ethers/types" {
   interface HardhatEthersHelpers extends HardhatEthersHelpersBase {
-  getContractFactory(name: 'IGhostProtocol', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IGhostProtocol__factory>
-getContractFactory(name: 'GhostProtocol', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.GhostProtocol__factory>
+  getContractFactory(name: 'GhostProtocol', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.GhostProtocol__factory>
+getContractFactory(name: 'IGhostProtocol', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IGhostProtocol__factory>
 
-  getContractAt(name: 'IGhostProtocol', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IGhostProtocol>
-getContractAt(name: 'GhostProtocol', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.GhostProtocol>
+  getContractAt(name: 'GhostProtocol', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.GhostProtocol>
+getContractAt(name: 'IGhostProtocol', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IGhostProtocol>
 
-  deployContract(name: 'IGhostProtocol', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IGhostProtocol>
-deployContract(name: 'GhostProtocol', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.GhostProtocol>
+  deployContract(name: 'GhostProtocol', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.GhostProtocol>
+deployContract(name: 'IGhostProtocol', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IGhostProtocol>
 
-  deployContract(name: 'IGhostProtocol', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IGhostProtocol>
-deployContract(name: 'GhostProtocol', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.GhostProtocol>
+  deployContract(name: 'GhostProtocol', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.GhostProtocol>
+deployContract(name: 'IGhostProtocol', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IGhostProtocol>
 
     // default types
     getContractFactory(

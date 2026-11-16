@@ -20,7 +20,7 @@
 - [x] Enforce a stored assessment hash, explicit reviewer identity, and reviewer approval before any AI-assisted oracle trigger.
 - [x] Upload a synthetic document to the AI verifier and record its assessment hash.
 - [x] Confirm an unapproved reviewer request is blocked before the contract trigger.
-- [x] Apply explicit manual review, trigger the vault, submit the matching release key, and verify the final `Released` state.
+- [x] Apply explicit manual review, trigger the vault, submit the matching proof hash, and verify the final `Released` state.
 - [x] Add a protected server-side review proxy so reviewer secrets never reach the browser.
 - [x] Build a Reviewer Console with document upload, AI assessment, explicit approve/reject, and manual release stages.
 - [x] Bind the console to the AI verifier and Node oracle APIs, including meaningful success and failure states.
@@ -30,6 +30,6 @@
 - [x] Verify the Reviewer Console’s protected interactive path after sign-in, including upload, reject, approval, and release feedback.
 - [x] Diagnose and repair the reported Reviewer Console preview/sign-in failure.
 - [x] Diagnose and repair the deployed Reviewer Console document-assessment 500 response.
-- [x] Extend the Reviewer Console browser smoke test to submit a matching release key through a local wallet and assert the visible release-success feedback.
+- [x] Extend the Reviewer Console browser smoke test to submit a matching proof hash through a local wallet and assert the visible release-success feedback.
 - [x] Document or automate the local browser-wallet setup required for final manual-release verification.
 - [ ] Organize the completed frontend, AI verifier, oracle, and support code into five to six focused commits and push them to GitHub.

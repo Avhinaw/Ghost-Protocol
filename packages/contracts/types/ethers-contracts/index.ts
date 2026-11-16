@@ -4,5 +4,5 @@
 export type { GhostProtocol } from './GhostProtocol.js';
 export type { IGhostProtocol } from './IGhostProtocol.js';
 export * as factories from './factories/index.js';
-export { IGhostProtocol__factory } from './factories/IGhostProtocol__factory.js';
 export { GhostProtocol__factory } from './factories/GhostProtocol__factory.js';
+export { IGhostProtocol__factory } from './factories/IGhostProtocol__factory.js';

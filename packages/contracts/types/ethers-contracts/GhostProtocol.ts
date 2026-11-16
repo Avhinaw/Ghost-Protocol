@@ -6,14 +6,14 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 export declare namespace IGhostProtocol {
       
-    export type VaultStruct = {owner: AddressLike, payloadHash: BytesLike, payloadCid: string, keyCommitment: BytesLike, checkInInterval: BigNumberish, gracePeriod: BigNumberish, createdAt: BigNumberish, lastHeartbeat: BigNumberish, triggeredAt: BigNumberish, triggerEvidenceHash: BytesLike, state: BigNumberish, releaseKey: BytesLike}
+    export type VaultStruct = {owner: AddressLike, payloadHash: BytesLike, payloadCid: string, keyCommitment: BytesLike, checkInInterval: BigNumberish, gracePeriod: BigNumberish, createdAt: BigNumberish, lastHeartbeat: BigNumberish, triggeredAt: BigNumberish, triggerEvidenceHash: BytesLike, state: BigNumberish}
 
-    export type VaultStructOutput = [owner: string, payloadHash: string, payloadCid: string, keyCommitment: string, checkInInterval: bigint, gracePeriod: bigint, createdAt: bigint, lastHeartbeat: bigint, triggeredAt: bigint, triggerEvidenceHash: string, state: bigint, releaseKey: string] & {owner: string, payloadHash: string, payloadCid: string, keyCommitment: string, checkInInterval: bigint, gracePeriod: bigint, createdAt: bigint, lastHeartbeat: bigint, triggeredAt: bigint, triggerEvidenceHash: string, state: bigint, releaseKey: string }
+    export type VaultStructOutput = [owner: string, payloadHash: string, payloadCid: string, keyCommitment: string, checkInInterval: bigint, gracePeriod: bigint, createdAt: bigint, lastHeartbeat: bigint, triggeredAt: bigint, triggerEvidenceHash: string, state: bigint] & {owner: string, payloadHash: string, payloadCid: string, keyCommitment: string, checkInInterval: bigint, gracePeriod: bigint, createdAt: bigint, lastHeartbeat: bigint, triggeredAt: bigint, triggerEvidenceHash: string, state: bigint }
   
     }
 
   export interface GhostProtocolInterface extends Interface {
-    getFunction(nameOrSignature: "MAX_CHECK_IN_INTERVAL" | "MAX_GRACE_PERIOD" | "MIN_CHECK_IN_INTERVAL" | "authorizedOracles" | "cancelVault" | "checkAndTriggerExpired" | "createVault" | "getVault" | "heartbeatDeadline" | "isExpired" | "owner" | "releaseVault" | "renounceOwnership" | "sendHeartbeat" | "setOracle" | "transferOwnership" | "triggerViaOracle" | "vaultCount"): FunctionFragment;
+    getFunction(nameOrSignature: "MAX_CHECK_IN_INTERVAL" | "MAX_GRACE_PERIOD" | "MIN_CHECK_IN_INTERVAL" | "authorizedOracles" | "cancelVault" | "checkAndTriggerExpired" | "createVault" | "getVault" | "heartbeatDeadline" | "isExpired" | "owner" | "releaseVaultWithProof" | "renounceOwnership" | "sendHeartbeat" | "setOracle" | "transferOwnership" | "triggerViaOracle" | "vaultCount"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "HeartbeatReceived" | "OracleAuthorizationUpdated" | "OwnershipTransferred" | "VaultCancelled" | "VaultCreated" | "VaultReleased" | "VaultTriggered"): EventFragment;
 
@@ -28,7 +28,7 @@ encodeFunctionData(functionFragment: 'getVault', values: [BigNumberish]): string
 encodeFunctionData(functionFragment: 'heartbeatDeadline', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'isExpired', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'owner', values?: undefined): string;
-encodeFunctionData(functionFragment: 'releaseVault', values: [BigNumberish, BytesLike]): string;
+encodeFunctionData(functionFragment: 'releaseVaultWithProof', values: [BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'renounceOwnership', values?: undefined): string;
 encodeFunctionData(functionFragment: 'sendHeartbeat', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'setOracle', values: [AddressLike, boolean]): string;
@@ -47,7 +47,7 @@ decodeFunctionResult(functionFragment: 'getVault', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'heartbeatDeadline', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'isExpired', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'owner', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'releaseVault', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'releaseVaultWithProof', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'renounceOwnership', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'sendHeartbeat', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setOracle', data: BytesLike): Result;
@@ -263,8 +263,8 @@ decodeFunctionResult(functionFragment: 'vaultCount', data: BytesLike): Result;
     
 
     
-    releaseVault: TypedContractMethod<
-      [vaultId: BigNumberish, releaseKey: BytesLike, ],
+    releaseVaultWithProof: TypedContractMethod<
+      [vaultId: BigNumberish, proofHash: BytesLike, ],
       [void],
       'nonpayable'
     >
@@ -376,8 +376,8 @@ getFunction(nameOrSignature: 'owner'): TypedContractMethod<
       [string],
       'view'
     >;
-getFunction(nameOrSignature: 'releaseVault'): TypedContractMethod<
-      [vaultId: BigNumberish, releaseKey: BytesLike, ],
+getFunction(nameOrSignature: 'releaseVaultWithProof'): TypedContractMethod<
+      [vaultId: BigNumberish, proofHash: BytesLike, ],
       [void],
       'nonpayable'
     >;

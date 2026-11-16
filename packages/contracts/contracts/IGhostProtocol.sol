@@ -21,7 +21,6 @@ interface IGhostProtocol {
         uint64 triggeredAt;
         bytes32 triggerEvidenceHash;
         VaultState state;
-        bytes releaseKey;
     }
 
     event VaultCreated(
@@ -56,5 +55,5 @@ interface IGhostProtocol {
     function cancelVault(uint256 vaultId) external;
     function checkAndTriggerExpired(uint256 vaultId) external;
     function triggerViaOracle(uint256 vaultId, bytes32 evidenceHash) external;
-    function releaseVault(uint256 vaultId, bytes calldata releaseKey) external;
+    function releaseVaultWithProof(uint256 vaultId, bytes32 proofHash) external;
 }

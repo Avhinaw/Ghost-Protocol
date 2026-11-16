@@ -6,7 +6,7 @@
 
 **Ghost Protocol** is a prototype for encrypted evidence vaults with heartbeat timeouts and a human-reviewed emergency-trigger flow. It combines a browser frontend, an EVM smart contract, a Node.js oracle API, and a Python document-assessment service.
 
-This is not a production safety or evidence-custody system. The AI service only returns a structured recommendation; a valid reviewer approval is required before an AI-assisted oracle trigger. News retrieval, IPFS upload, production key custody, and biometric check-in are not implemented. Use synthetic data and a local chain only.
+This is not a production safety or evidence-custody system. The AI service only returns a structured recommendation; a valid reviewer approval is required before an AI-assisted oracle trigger. News retrieval, IPFS upload, production reviewer identity, durable recipient-key recovery, and biometric check-in are not implemented. Use synthetic data and local/test networks only.
 
 ---
 
@@ -14,7 +14,7 @@ This is not a production safety or evidence-custody system. The AI service only 
 - [Executive Summary & Vision](#-executive-summary--vision)
 - [Core User Roles](#-core-user-roles)
 - [Functional Requirements](#-functional-requirements)
-  - [Client-Side Encryption & IPFS Management](#1-client-side-encryption--ipfs-payload-management)
+  - [Client-Side Encryption & Encrypted Payload Storage](#1-client-side-encryption--encrypted-payload-storage)
   - [Smart Contract Engine](#2-smart-contract-engine-ghostprotocolsol)
   - [AI Document Assessment](#3-ai-document-assessment)
 - [System Architecture](#-system-architecture)
@@ -28,7 +28,7 @@ This is not a production safety or evidence-custody system. The AI service only 
 
 Ghost Protocol explores a blockchain-backed heartbeat and encrypted-vault workflow for users who need a controlled release mechanism for sensitive evidence.
 
-The current repository is a working local prototype, not a guarantee of release, secrecy, or safety. Its local demo uses synthetic content, a temporary in-memory review registry, and a prototype release-key design.
+The current repository is a working prototype, not a guarantee of release, secrecy, or safety. Its demo uses synthetic content, a temporary in-memory review registry, and a user-held passphrase with no recovery mechanism.
 
 ---
 
@@ -44,10 +44,11 @@ The current repository is a working local prototype, not a guarantee of release,
 
 ## Functional Requirements
 
-### 1. Client-Side Encryption & IPFS Payload Management
+### 1. Client-Side Encryption & Encrypted Payload Storage
 * **Browser encryption:** The frontend prototype encrypts selected files using **AES-256-GCM** before vault creation.
-* **Storage:** The current create flow uses a `local://` demo CID; IPFS/Arweave upload is not implemented.
-* **Key custody:** Prototype only. Do not store real evidence or rely on this flow for recovery.
+* **Storage:** The browser stages client-encrypted binary files and filename/MIME metadata in MongoDB and commits a `mongo://<uploadId>` CID plus the SHA-256 proof-manifest hash on-chain. IPFS/Arweave is not implemented.
+* **Proof-gated release:** After `Triggered`, the backend recomputes the encrypted file, encrypted filename/MIME metadata, and proof-manifest hashes; the owner calls `releaseVaultWithProof`; and the browser decrypts and rechecks the plaintext SHA-256 only after the chain reports `Released`.
+* **Key custody:** The AES key is wrapped under an Argon2id-derived key from a user-held passphrase. The passphrase and plaintext are not stored or sent to the backend. A forgotten or weak passphrase cannot be recovered; do not store real or irreplaceable evidence.
 
 ### 2. Smart Contract Engine (`GhostProtocol.sol`)
 * **Time-Lock Logic:** Configurable `checkInInterval` (e.g., 7 days) and `gracePeriod` (e.g., 48 hours).
@@ -73,7 +74,7 @@ The current repository is a working local prototype, not a guarantee of release,
                                      v
 +------------------------------------+------------------------------------+
 |                      SMART CONTRACT (Base / EVM)                       |
-|   - Stores Vault Meta, Hashes, Heartbeat Timestamps, Release Keys       |
+|   - Stores vault metadata, proof hash, heartbeat state, release status  |
 +------------------------------------+------------------------------------+
                                      ^
                                      | (Oracle Calls / Cron Checks)
@@ -81,6 +82,7 @@ The current repository is a working local prototype, not a guarantee of release,
 |                      BACKEND & AI ORACLE SERVICE                        |
 |  - Node.js Cron Service: Checks time-lock expirations                   |
 |  - Python FastAPI: Structured text/PDF assessment                       |
+|  - MongoDB: Holds staged/anchored ciphertext and wrapped key             |
 |  - Human-review gate: Required before AI-assisted oracle trigger         |
 +-------------------------------------------------------------------------+
 ```
@@ -123,4 +125,4 @@ For the complete local AI-review-to-contract demonstration, follow [AI_INTEGRATI
 
 ## Prototype boundaries
 
-This repository is not ready for real evidence or production deployment. The current workflow has a `local://` payload CID, temporary in-memory assessment storage, a prototype key-release design, no implemented news RAG/OCR, and no production reviewer identity system. Review [BLOCKCHAIN_IMPLEMENTATION.md](./BLOCKCHAIN_IMPLEMENTATION.md) and [docs/ENVIRONMENT_AND_SECRETS.md](./docs/ENVIRONMENT_AND_SECRETS.md) before deployment.
+This repository is not ready for real evidence or production deployment. Assessments remain in memory; recipient-key recovery and production reviewer identity are not implemented; no news RAG/OCR is included. The proof-release contract changes are incompatible with earlier deployments: deploy the updated contract and configure the new address in the backend and frontend before testing. Review [BLOCKCHAIN_IMPLEMENTATION.md](./BLOCKCHAIN_IMPLEMENTATION.md) and [docs/ENVIRONMENT_AND_SECRETS.md](./docs/ENVIRONMENT_AND_SECRETS.md) before deployment.

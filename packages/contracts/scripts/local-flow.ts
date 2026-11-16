@@ -5,9 +5,8 @@ const { ethers } = await network.create();
 const STATE_NAMES = ["Active", "Triggered", "Released", "Cancelled"];
 const CHECK_IN = 60 * 60;
 const GRACE = 60 * 60;
-const releaseKey = ethers.toUtf8Bytes("local-demo-release-key");
 const payloadHash = ethers.keccak256(ethers.toUtf8Bytes("local-encrypted-payload"));
-const keyCommitment = ethers.keccak256(releaseKey);
+const keyCommitment = ethers.keccak256(ethers.toUtf8Bytes("local-wrapped-key"));
 
 const [deployer, user, oracle] = await ethers.getSigners();
 const contract = await ethers.deployContract("GhostProtocol", [deployer.address, oracle.address]);
@@ -38,8 +37,7 @@ await (await contract.connect(oracle).checkAndTriggerExpired(vaultId)).wait();
 vault = await contract.getVault(vaultId);
 console.log(`7. Timeout trigger: ${STATE_NAMES[Number(vault.state)]}`);
 
-await (await contract.connect(oracle).releaseVault(vaultId, releaseKey)).wait();
+await (await contract.connect(user).releaseVaultWithProof(vaultId, payloadHash)).wait();
 vault = await contract.getVault(vaultId);
-console.log(`8. Key commitment verified; final state: ${STATE_NAMES[Number(vault.state)]}`);
-console.log(`9. Released key: ${ethers.toUtf8String(vault.releaseKey)}`);
+console.log(`8. Matching proof hash accepted; final state: ${STATE_NAMES[Number(vault.state)]}`);
 console.log("Local Ghost Protocol flow completed successfully.");

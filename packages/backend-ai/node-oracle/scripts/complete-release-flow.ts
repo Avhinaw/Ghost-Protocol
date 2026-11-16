@@ -6,6 +6,7 @@ import { AssessmentRegistry } from "../src/assessment-registry.js";
 import { HttpAiVerifierClient } from "../src/ai-verifier.js";
 import { BlockchainService } from "../src/blockchain-service.js";
 import { GHOST_PROTOCOL_ABI } from "../src/contract-abi.js";
+import { computeEncryptedPayloadHash, computeProofHash, sha256Hex } from "../src/vault-proof.js";
 
 const require = createRequire(import.meta.url);
 const artifact = require("../../../contracts/artifacts/contracts/GhostProtocol.sol/GhostProtocol.json");
@@ -30,12 +31,24 @@ const address = server.address();
 if (!address || typeof address === "string") throw new Error("Could not start local API server");
 const baseUrl = `http://127.0.0.1:${address.port}`;
 
-const releaseKey = toUtf8Bytes("synthetic-complete-flow-release-key");
+const wrappedKeyFixture = toUtf8Bytes("synthetic-complete-flow-wrapped-key");
+const proofIv = Buffer.alloc(12, 7).toString("base64");
+const proofCiphertext = Buffer.from("synthetic encrypted test payload");
+const metadataIv = Buffer.alloc(12, 6).toString("base64");
+const encryptedMetadata = Buffer.from("synthetic encrypted test metadata");
+const proofHash = computeProofHash({
+  plaintextSha256: sha256Hex(Buffer.from("synthetic original test payload")),
+  encryptedPayloadSha256: computeEncryptedPayloadHash(proofIv, proofCiphertext),
+  encryptedMetadataSha256: computeEncryptedPayloadHash(metadataIv, encryptedMetadata),
+  iv: proofIv,
+  metadataIv,
+  keyCommitment: keccak256(wrappedKeyFixture),
+});
 const userContract = new Contract(contractAddress, GHOST_PROTOCOL_ABI, user);
 const createTx = await userContract.createVault(
-  keccak256(toUtf8Bytes("synthetic-encrypted-upload")),
-  "local://synthetic-complete-flow-document",
-  keccak256(releaseKey),
+  proofHash,
+  "mongo://synthetic-complete-flow",
+  keccak256(wrappedKeyFixture),
   3600,
   3600,
 );
@@ -67,12 +80,12 @@ if (!reviewResponse.ok || !reviewBody.hash) throw new Error(`Manual review trigg
 console.log(`4. Manual reviewer approved; oracle trigger relayed: ${reviewBody.hash}`);
 
 const ownerContract = new Contract(contractAddress, artifact.abi, owner);
-const releaseTx = await ownerContract.releaseVault(1, releaseKey);
+const releaseTx = await ownerContract.releaseVaultWithProof(1, proofHash);
 await releaseTx.wait();
 const finalVault = await service.getVault(1);
-if (finalVault.stateName !== "Released" || !finalVault.releaseKeyAvailable) {
+if (finalVault.stateName !== "Released" || !finalVault.documentReleased) {
   throw new Error(`Expected final Released state, received ${finalVault.stateName}`);
 }
-console.log(`5. Manual release key accepted; final vault state: ${finalVault.stateName}`);
+console.log(`5. Matching SHA-256 manifest hash accepted; final vault state: ${finalVault.stateName}`);
 server.close();
 console.log("Complete synthetic document-to-release flow completed successfully.");

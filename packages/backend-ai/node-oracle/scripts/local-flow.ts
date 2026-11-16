@@ -14,8 +14,8 @@ const USER_KEY = "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78
 const ORACLE_KEY = OWNER_KEY;
 const CHECK_IN = 60 * 60;
 const GRACE = 60 * 60;
-const releaseKey = toUtf8Bytes("backend-local-release-key");
-const keyCommitment = keccak256(releaseKey);
+const wrappedKeyFixture = toUtf8Bytes("backend-local-wrapped-key-fixture");
+const keyCommitment = keccak256(wrappedKeyFixture);
 const payloadHash = keccak256(toUtf8Bytes("backend-local-encrypted-payload"));
 
 const provider = new JsonRpcProvider(RPC_URL);

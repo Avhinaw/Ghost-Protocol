@@ -48,9 +48,8 @@ async function main() {
   const provider = new JsonRpcProvider(RPC_URL);
   const user = new Wallet(USER_KEY, provider);
   const contract = new Contract(config.contractAddress, CONTRACT_ABI, user);
-  const releaseKeyText = "reviewer-ui-browser-smoke-release-key";
-  const releaseKey = toUtf8Bytes(releaseKeyText);
-  await (await contract.createVault(keccak256(toUtf8Bytes(`browser-ui-ciphertext-${Date.now()}`)), "local://browser-ui-synthetic-document", keccak256(releaseKey), 3600, 3600)).wait();
+  const proofHash = keccak256(toUtf8Bytes(`browser-ui-proof-${Date.now()}`));
+  await (await contract.createVault(proofHash, "local://browser-ui-synthetic-document", keccak256(toUtf8Bytes("browser-ui-wrapped-key")), 3600, 3600)).wait();
   const vaultId = (await contract.vaultCount()).toString();
   const target = await createTarget();
   const client = await connect(target.webSocketDebuggerUrl);
@@ -99,13 +98,13 @@ async function main() {
     if (!(await contains("Triggered."))) throw new Error(`Approval feedback did not confirm the oracle trigger. Visible page text: ${await evaluate("document.body.innerText")}`);
 
     const userAddress = await user.getAddress();
-    await evaluate(`(() => { const account = ${JSON.stringify(userAddress)}; window.ethereum = { request: async ({ method, params = [] }) => { if (method === 'eth_accounts' || method === 'eth_requestAccounts') return [account]; const response = await fetch('http://127.0.0.1:8545', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: Date.now(), method, params }) }); const payload = await response.json(); if (payload.error) throw new Error(payload.error.message); return payload.result; } }; const input = document.querySelector('input[type=password]'); const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; setValue.call(input, ${JSON.stringify(releaseKeyText)}); input.dispatchEvent(new Event('input', { bubbles: true })); input.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+    await evaluate(`(() => { const account = ${JSON.stringify(userAddress)}; window.ethereum = { request: async ({ method, params = [] }) => { if (method === 'eth_accounts' || method === 'eth_requestAccounts') return [account]; const response = await fetch('http://127.0.0.1:8545', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: Date.now(), method, params }) }); const payload = await response.json(); if (payload.error) throw new Error(payload.error.message); return payload.result; } }; const input = document.querySelector('.release-body .field:nth-of-type(2) input'); const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; setValue.call(input, ${JSON.stringify(proofHash)}); input.dispatchEvent(new Event('input', { bubbles: true })); input.dispatchEvent(new Event('change', { bubbles: true })); })()`);
     await delay(250);
-    if (!(await clickByText("Submit release key"))) throw new Error("Manual release action was not enabled after approval");
+    if (!(await clickByText("Submit proof hash"))) throw new Error("Manual proof-release action was not enabled after approval");
     await delay(1_500);
     if (!(await contains("Released locally"))) throw new Error(`Manual release feedback did not confirm success. Visible page text: ${await evaluate("document.body.innerText")}`);
 
-    console.log("Reviewer Console browser smoke passed: local sign-in, synthetic upload, rejection/no-oracle feedback, human approval, and manual release feedback.");
+    console.log("Reviewer Console browser smoke passed: local sign-in, synthetic upload, rejection/no-oracle feedback, human approval, and proof-hash release feedback.");
   } finally {
     client.close();
   }

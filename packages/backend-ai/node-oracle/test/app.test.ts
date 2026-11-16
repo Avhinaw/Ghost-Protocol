@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
+import { createHash, randomUUID } from "node:crypto";
 import { createServer, type Server } from "node:http";
 import { keccak256, Wallet } from "ethers";
 import test from "node:test";
-import { createApp, vaultFileSignatureMessage } from "../src/app.js";
-import type { SaveVaultFileInput } from "../src/mongo-vault-store.js";
+import { createApp, stagedUploadSignatureMessage, vaultFileSignatureMessage } from "../src/app.js";
+import type { StageVaultFileInput } from "../src/mongo-vault-store.js";
 import type { VaultFileModel } from "../src/models.js";
+import { computeEncryptedPayloadHash, computeProofHash } from "../src/vault-proof.js";
 
 const sampleVault = {
   id: 1n,
@@ -20,7 +22,7 @@ const sampleVault = {
   triggerEvidenceHash: "0x" + "00".repeat(32),
   state: 0,
   stateName: "Active",
-  releaseKeyAvailable: false,
+  documentReleased: false,
   deadline: 7300n,
   expired: false,
 };
@@ -79,66 +81,206 @@ test("backend rejects malformed oracle input", async (t) => {
   assert.equal(response.status, 400);
 });
 
-test("encrypted vault files require the on-chain owner signature and matching payload hash", async (t) => {
+test("staged file proof must match its on-chain vault before signed release and download", async (t) => {
   const owner = Wallet.createRandom();
-  const encryptedData = Buffer.from("encrypted test payload");
-  const payloadHash = keccak256(encryptedData);
-  const vault = {
+  const uploadId = randomUUID();
+  const encryptedData = Buffer.from("synthetic encrypted binary payload");
+  const ivBytes = Buffer.alloc(12, 7);
+  const iv = ivBytes.toString("base64");
+  const encryptedMetadata = Buffer.from("synthetic encrypted file metadata");
+  const metadataIv = Buffer.alloc(12, 6).toString("base64");
+  const wrappedKey = Buffer.concat([Buffer.from("GPK1"), Buffer.alloc(76, 9)]);
+  const plaintextSha256 = `0x${createHash("sha256").update(Buffer.from("synthetic binary original")).digest("hex")}`;
+  const encryptedPayloadSha256 = computeEncryptedPayloadHash(iv, encryptedData);
+  const encryptedMetadataSha256 = computeEncryptedPayloadHash(metadataIv, encryptedMetadata);
+  const keyCommitment = keccak256(wrappedKey);
+  const proofManifest = {
+    plaintextSha256,
+    encryptedPayloadSha256,
+    encryptedMetadataSha256,
+    iv,
+    metadataIv,
+    keyCommitment,
+  };
+  const proofHash = computeProofHash(proofManifest);
+  const contractAddress = "0x0000000000000000000000000000000000000002";
+  const transactionHash = `0x${"ab".repeat(32)}`;
+  const otherOwner = Wallet.createRandom();
+  let vault = {
     ...sampleVault,
     owner: owner.address,
-    payloadHash,
-    payloadCid: `mongo://${payloadHash.slice(2).toLowerCase()}`,
+    payloadHash: proofHash,
+    payloadCid: `mongo://${uploadId}`,
+    keyCommitment,
+    state: 1,
+    stateName: "Triggered",
+    documentReleased: false,
   };
   let savedFile: VaultFileModel | undefined;
   const fakeStore = {
-    saveVaultFile: async (file: SaveVaultFileInput) => { savedFile = { ...file, createdAt: new Date(), updatedAt: new Date() }; },
-    getVaultFile: async () => savedFile ?? null,
+    stageVaultFile: async (file: StageVaultFileInput) => { savedFile = { ...file, createdAt: new Date(), updatedAt: new Date() }; },
+    anchorVaultFile: async (input: { uploadId: string; vaultId: string; anchorTxHash: string; anchorBlockNumber: number }) => {
+      if (!savedFile || savedFile.uploadId !== input.uploadId || savedFile.status !== "PENDING_ANCHOR") return false;
+      savedFile = { ...savedFile, ...input, status: "ANCHORED", updatedAt: new Date(), expiresAt: undefined };
+      return true;
+    },
+    getVaultFileByUploadId: async () => savedFile ?? null,
+    getVaultFile: async () => savedFile?.status === "ANCHORED" ? savedFile : null,
+  };
+  let createdEvent = {
+    name: "VaultCreated",
+    args: { vaultId: 1n, owner: otherOwner.address, payloadHash: proofHash },
   };
   const fakeService = {
-    contractAddress: "0x0000000000000000000000000000000000000002",
+    contractAddress,
     chainId: async () => 84532n,
     getVault: async () => vault,
+    contract: { interface: { parseLog: () => createdEvent } },
+    provider: {
+      getTransactionReceipt: async () => ({
+        status: 1,
+        to: contractAddress,
+        hash: transactionHash,
+        blockNumber: 123,
+        logs: [{ address: contractAddress }],
+      }),
+    },
   };
   const { server, baseUrl } = await listen(createApp(fakeService as any, undefined, undefined, undefined, undefined, fakeStore));
   t.after(() => server.close());
 
-  const iv = Buffer.alloc(12, 7).toString("base64");
-  const mismatchedForm = new FormData();
-  mismatchedForm.append("file", new Blob([Buffer.from("not the committed payload")]), "wrong.txt");
-  const mismatchedUpload = await fetch(`${baseUrl}/api/v1/vaults/1/file`, { method: "POST", body: mismatchedForm });
+  const signature = await owner.signMessage(stagedUploadSignatureMessage(
+    "84532", contractAddress, uploadId, proofHash, keyCommitment,
+  ));
+  const form = new FormData();
+  form.append("file", new Blob([encryptedData]), "encrypted-payload.bin");
+  form.append("uploadId", uploadId);
+  form.append("plaintextSha256", plaintextSha256);
+  form.append("encryptedPayloadSha256", encryptedPayloadSha256);
+  form.append("encryptedMetadataSha256", encryptedMetadataSha256);
+  form.append("proofHash", proofHash);
+  form.append("keyCommitment", keyCommitment);
+  form.append("iv", iv);
+  form.append("metadataIv", metadataIv);
+  form.append("encryptedMetadata", encryptedMetadata.toString("base64"));
+  form.append("wrappedKey", wrappedKey.toString("base64"));
+  form.append("signature", signature);
+  const upload = await fetch(`${baseUrl}/api/v1/uploads`, { method: "POST", body: form });
+  assert.equal(upload.status, 201);
+  assert.equal(savedFile?.ownerAddress, owner.address.toLowerCase());
+  assert.deepEqual(savedFile?.encryptedData, encryptedData);
+  assert.deepEqual(savedFile?.encryptedMetadata, encryptedMetadata);
+  assert.equal("fileName" in savedFile!, false);
+  assert.equal("contentType" in savedFile!, false);
+
+  const badDigestForm = new FormData();
+  badDigestForm.append("file", new Blob([Buffer.from("tampered encrypted payload")]), "wrong.bin");
+  badDigestForm.append("uploadId", randomUUID());
+  badDigestForm.append("plaintextSha256", plaintextSha256);
+  badDigestForm.append("encryptedPayloadSha256", encryptedPayloadSha256);
+  badDigestForm.append("encryptedMetadataSha256", encryptedMetadataSha256);
+  badDigestForm.append("proofHash", proofHash);
+  badDigestForm.append("keyCommitment", keyCommitment);
+  badDigestForm.append("iv", iv);
+  badDigestForm.append("metadataIv", metadataIv);
+  badDigestForm.append("encryptedMetadata", encryptedMetadata.toString("base64"));
+  badDigestForm.append("wrappedKey", wrappedKey.toString("base64"));
+  badDigestForm.append("signature", signature);
+  const mismatchedUpload = await fetch(`${baseUrl}/api/v1/uploads`, { method: "POST", body: badDigestForm });
   assert.equal(mismatchedUpload.status, 409);
 
-  const uploadMessage = vaultFileSignatureMessage("upload", "84532", fakeService.contractAddress, "1", payloadHash, {
-    fileName: "evidence.txt",
-    iv,
-    contentType: "text/plain",
+  const invalidWrappedKeyForm = new FormData();
+  invalidWrappedKeyForm.append("file", new Blob([encryptedData]), "invalid-key.bin");
+  invalidWrappedKeyForm.append("uploadId", randomUUID());
+  invalidWrappedKeyForm.append("plaintextSha256", plaintextSha256);
+  invalidWrappedKeyForm.append("encryptedPayloadSha256", encryptedPayloadSha256);
+  invalidWrappedKeyForm.append("encryptedMetadataSha256", encryptedMetadataSha256);
+  invalidWrappedKeyForm.append("proofHash", proofHash);
+  invalidWrappedKeyForm.append("keyCommitment", keyCommitment);
+  invalidWrappedKeyForm.append("iv", iv);
+  invalidWrappedKeyForm.append("metadataIv", metadataIv);
+  invalidWrappedKeyForm.append("encryptedMetadata", encryptedMetadata.toString("base64"));
+  invalidWrappedKeyForm.append("wrappedKey", Buffer.concat([Buffer.from("BAD1"), Buffer.alloc(76, 9)]).toString("base64"));
+  invalidWrappedKeyForm.append("signature", signature);
+  const invalidWrappedKey = await fetch(`${baseUrl}/api/v1/uploads`, {
+    method: "POST",
+    body: invalidWrappedKeyForm,
   });
-  const form = new FormData();
-  form.append("file", new Blob([encryptedData]), "evidence.txt");
-  form.append("iv", iv);
-  form.append("contentType", "text/plain");
-  form.append("signature", await owner.signMessage(uploadMessage));
-  const upload = await fetch(`${baseUrl}/api/v1/vaults/1/file`, { method: "POST", body: form });
-  assert.equal(upload.status, 201);
-  assert.equal(savedFile?.ownerAddress, owner.address);
-  assert.deepEqual(savedFile?.encryptedData, encryptedData);
+  assert.equal(invalidWrappedKey.status, 400);
 
-  const downloadMessage = vaultFileSignatureMessage("download", "84532", fakeService.contractAddress, "1", payloadHash);
-  const download = await fetch(`${baseUrl}/api/v1/vaults/1/file`, {
-    headers: { "x-wallet-signature": await owner.signMessage(downloadMessage) },
+  const anchor = await fetch(`${baseUrl}/api/v1/uploads/${uploadId}/anchor`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ vaultId: "1", transactionHash }),
   });
-  assert.equal(download.status, 200);
-  assert.equal(download.headers.get("x-encrypted-file-iv"), iv);
-  assert.deepEqual(Buffer.from(await download.arrayBuffer()), encryptedData);
+  assert.equal(anchor.status, 409);
+  assert.equal(savedFile?.status, "PENDING_ANCHOR");
+  createdEvent = {
+    name: "VaultCreated",
+    args: { vaultId: 1n, owner: owner.address, payloadHash: `0x${"ff".repeat(32)}` },
+  };
+  const mismatchedEvent = await fetch(`${baseUrl}/api/v1/uploads/${uploadId}/anchor`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ vaultId: "1", transactionHash }),
+  });
+  assert.equal(mismatchedEvent.status, 409);
+  createdEvent = {
+    name: "VaultCreated",
+    args: { vaultId: 1n, owner: owner.address, payloadHash: proofHash },
+  };
+  const validAnchor = await fetch(`${baseUrl}/api/v1/uploads/${uploadId}/anchor`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ vaultId: "1", transactionHash }),
+  });
+  assert.equal(validAnchor.status, 200);
+  assert.equal(savedFile?.status, "ANCHORED");
+
+  const verifySignature = await owner.signMessage(vaultFileSignatureMessage("verify", "84532", contractAddress, "1", proofHash));
+  const anchoredRecord = savedFile;
+  savedFile = { ...savedFile!, encryptedData: Buffer.from("tampered encrypted payload") };
+  const corruptedProof = await fetch(`${baseUrl}/api/v1/vaults/1/proof`, { headers: { "x-wallet-signature": verifySignature } });
+  assert.equal(corruptedProof.status, 409);
+  savedFile = { ...anchoredRecord!, encryptedMetadata: Buffer.from("tampered encrypted metadata") };
+  const corruptedMetadata = await fetch(`${baseUrl}/api/v1/vaults/1/proof`, {
+    headers: { "x-wallet-signature": verifySignature },
+  });
+  assert.equal(corruptedMetadata.status, 409);
+  savedFile = anchoredRecord;
+  const proof = await fetch(`${baseUrl}/api/v1/vaults/1/proof`, { headers: { "x-wallet-signature": verifySignature } });
+  assert.equal(proof.status, 200);
+  const proofBody = await proof.json();
+  assert.equal(proofBody.verified, true);
+  assert.equal("fileName" in proofBody, false);
 
   const otherWallet = Wallet.createRandom();
-  const unauthorizedForm = new FormData();
-  unauthorizedForm.append("file", new Blob([encryptedData]), "evidence.txt");
-  unauthorizedForm.append("iv", iv);
-  unauthorizedForm.append("contentType", "text/plain");
-  unauthorizedForm.append("signature", await otherWallet.signMessage(uploadMessage));
-  const unauthorized = await fetch(`${baseUrl}/api/v1/vaults/1/file`, { method: "POST", body: unauthorizedForm });
-  assert.equal(unauthorized.status, 403);
+  const unauthorizedProof = await fetch(`${baseUrl}/api/v1/vaults/1/proof`, {
+    headers: {
+      "x-wallet-signature": await otherWallet.signMessage(
+        vaultFileSignatureMessage("verify", "84532", contractAddress, "1", proofHash),
+      ),
+    },
+  });
+  assert.equal(unauthorizedProof.status, 403);
+
+  const downloadSignature = await owner.signMessage(vaultFileSignatureMessage("download", "84532", contractAddress, "1", proofHash));
+  const blockedDownload = await fetch(`${baseUrl}/api/v1/vaults/1/file`, {
+    headers: { "x-wallet-signature": downloadSignature },
+  });
+  assert.equal(blockedDownload.status, 403);
+
+  vault = { ...vault, state: 2, stateName: "Released", documentReleased: true };
+  const download = await fetch(`${baseUrl}/api/v1/vaults/1/file`, {
+    headers: { "x-wallet-signature": downloadSignature },
+  });
+  assert.equal(download.status, 200);
+  const downloadedFile = await download.json();
+  assert.equal(downloadedFile.proofHash, proofHash);
+  assert.deepEqual(Buffer.from(downloadedFile.encryptedData, "base64"), encryptedData);
+  assert.deepEqual(Buffer.from(downloadedFile.encryptedMetadata, "base64"), encryptedMetadata);
+  assert.equal("fileName" in downloadedFile, false);
+  assert.equal("contentType" in downloadedFile, false);
 });
 
 test("backend reports invalid vault IDs and oversized uploads as client errors", async (t) => {

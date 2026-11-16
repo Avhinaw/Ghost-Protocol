@@ -41,8 +41,8 @@ const baseUrl = `http://127.0.0.1:${address.port}`;
 const userContract = new Contract(contractAddress, GHOST_PROTOCOL_ABI, user);
 const createTx = await userContract.createVault(
   keccak256(toUtf8Bytes("synthetic-ai-flow-encrypted-payload")),
-  "local://synthetic-ai-flow",
-  keccak256(toUtf8Bytes("synthetic-ai-flow-release-key")),
+  "mongo://synthetic-ai-flow",
+  keccak256(toUtf8Bytes("synthetic-ai-flow-wrapped-key-fixture")),
   3600,
   3600,
 );

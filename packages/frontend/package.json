@@ -61,6 +61,7 @@
     "express": "^4.21.2",
     "framer-motion": "^12.23.22",
     "gsap": "^3.15.1",
+    "hash-wasm": "4.13.0",
     "input-otp": "^1.4.2",
     "jose": "6.1.0",
     "locomotive-scroll": "^5.0.1",

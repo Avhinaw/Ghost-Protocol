@@ -5,7 +5,7 @@ const RPC_URL = "http://127.0.0.1:8545";
 const USER_KEY = "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d";
 const ABI = [
   "function createVault(bytes32 payloadHash, string payloadCid, bytes32 keyCommitment, uint64 checkInInterval, uint64 gracePeriod) returns (uint256 vaultId)",
-  "function releaseVault(uint256 vaultId, bytes releaseKey)",
+  "function releaseVaultWithProof(uint256 vaultId, bytes32 proofHash)",
   "function vaultCount() view returns (uint256)",
 ] as const;
 
@@ -29,13 +29,13 @@ const caller = appRouter.createCaller(ctx);
 const protocol = await caller.reviewer.status();
 const provider = new JsonRpcProvider(RPC_URL);
 const user = new Wallet(USER_KEY, provider);
-const releaseKey = toUtf8Bytes("review-ui-local-release-key");
+const proofHash = keccak256(toUtf8Bytes("review-ui-local-ciphertext"));
 
 const vaultContract = new Contract(protocol.contractAddress, ABI, user);
 const createTx = await vaultContract.createVault(
-  keccak256(toUtf8Bytes("review-ui-local-ciphertext")),
+  proofHash,
   "local://review-ui-synthetic-document",
-  keccak256(releaseKey),
+  keccak256(toUtf8Bytes("review-ui-local-wrapped-key")),
   3600,
   3600,
 );
@@ -56,9 +56,9 @@ const approval = await caller.reviewer.approve({ vaultId, assessmentHash: assess
 if (!(approval as { hash?: string }).hash) throw new Error("Expected an oracle transaction hash");
 console.log("2. Protected tRPC reviewer approval relayed to the local oracle");
 
-await (await vaultContract.releaseVault(vaultId, releaseKey)).wait();
+await (await vaultContract.releaseVaultWithProof(vaultId, proofHash)).wait();
 const finalVaultResponse = await fetch(`http://127.0.0.1:4000/api/v1/vaults/${vaultId}`);
 const finalVault = await finalVaultResponse.json() as { vault?: { stateName?: string } };
 if (finalVault.vault?.stateName !== "Released") throw new Error(`Expected Released, received ${finalVault.vault?.stateName}`);
-console.log("3. Manual release key accepted; vault is Released");
+console.log("3. Matching proof hash accepted; vault is Released");
 console.log("Reviewer Console protected local API flow completed successfully.");
