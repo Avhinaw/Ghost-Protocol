@@ -29,6 +29,8 @@ npm install
 
 Copy `.env.example` to `.env` for the current Base Sepolia deployment preset. For local development, override `RPC_URL`, `CONTRACT_ADDRESS`, and `CORS_ORIGIN` for your local Hardhat stack. For any public testnet, configure `ORACLE_PRIVATE_KEY` only as a secret and use a dedicated authorized testnet oracle wallet; never use Hardhat keys on a public network.
 
+On Render, the API binds to `0.0.0.0` and uses the platform-provided `PORT`. Do not pin `PORT=4000` in Render; keep port `4000` for local development only.
+
 Start the local chain in one terminal:
 
 ```bash

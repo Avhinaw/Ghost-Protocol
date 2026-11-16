@@ -28,8 +28,8 @@ const worker = config.ORACLE_PRIVATE_KEY
     )
   : undefined;
 
-server.listen(config.PORT, () => {
-  console.log(`Ghost Protocol backend listening on http://localhost:${config.PORT}`);
+server.listen(config.PORT, "0.0.0.0", () => {
+  console.log(`Ghost Protocol backend listening on 0.0.0.0:${config.PORT}`);
   console.log(`Contract: ${config.CONTRACT_ADDRESS}`);
   console.log(aiVerifier ? `AI verifier: ${config.AI_VERIFIER_URL}` : "AI verifier disabled");
   console.log(config.REVIEWER_APPROVAL_TOKEN ? "AI reviewer gate configured" : "AI reviewer gate disabled: REVIEWER_APPROVAL_TOKEN is not configured");
