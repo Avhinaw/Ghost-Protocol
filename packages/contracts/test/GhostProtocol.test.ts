@@ -152,8 +152,17 @@ describe("GhostProtocol", function () {
       "InvalidKeyCommitment"
     );
     await expectRevert(
-      () => contract.connect(user).createVault(payloadHash, payloadCid, keyCommitment, 30 * 60, HOUR),
+      () => contract.connect(user).createVault(payloadHash, payloadCid, keyCommitment, 5 * 60 - 1, HOUR),
       "InvalidCheckInInterval"
     );
+  });
+
+  it("accepts five-minute check-in and grace periods for test vaults", async function () {
+    const vaultId = await createUserVault(5 * 60, 5 * 60);
+    const vault = await contract.getVault(vaultId);
+
+    expect(vault.checkInInterval).to.equal(300n);
+    expect(vault.gracePeriod).to.equal(300n);
+    expect(await contract.heartbeatDeadline(vaultId)).to.equal(vault.lastHeartbeat + 600n);
   });
 });

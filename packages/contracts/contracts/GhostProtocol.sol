@@ -8,7 +8,7 @@ import {IGhostProtocol} from "./IGhostProtocol.sol";
 /// @notice Testnet-first encrypted evidence vault with a dead-man's-switch trigger.
 /// @dev The contract stores a proof-manifest hash, never document bytes or keys.
 contract GhostProtocol is Ownable, IGhostProtocol {
-    uint64 public constant MIN_CHECK_IN_INTERVAL = 1 hours;
+    uint64 public constant MIN_CHECK_IN_INTERVAL = 5 minutes;
     uint64 public constant MAX_CHECK_IN_INTERVAL = 365 days;
     uint64 public constant MAX_GRACE_PERIOD = 30 days;
 

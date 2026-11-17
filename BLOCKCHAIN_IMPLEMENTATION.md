@@ -21,7 +21,7 @@ The contract does not decide whether a real person has died. It only enforces bl
 
 | Decision | Why it matters |
 |---|---|
-| **Heartbeat interval and grace period** | These determine when a vault may be triggered. The current contract accepts intervals from one hour to 365 days and grace periods up to 30 days. |
+| **Heartbeat interval and grace period** | These determine when a vault may be triggered. The test contract accepts intervals from five minutes to 365 days and grace periods up to 30 days. Five-minute settings are for testnet testing only; do not use them for real evidence or production deployments. |
 | **Who controls the oracle** | The current prototype supports an owner-controlled authorized-oracle list. For production, choose a multisig or threshold oracle instead of one hot wallet. |
 | **What evidence is stored** | Decide whether the payload is a document, video, archive, or multiple files, and define maximum size and metadata rules. |
 | **Recipient recovery** | Decide whether to add a user-controlled recovery mechanism; the current passphrase cannot be reset by the service. |
