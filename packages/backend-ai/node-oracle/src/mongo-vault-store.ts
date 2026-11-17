@@ -29,21 +29,57 @@ export class MongoVaultStore implements VaultStore {
     this.databaseName = databaseName;
   }
 
+
   async connect(): Promise<void> {
     await this.client.connect();
+
     const database: Db = this.client.db(this.databaseName);
+
     this.wallets = database.collection<WalletDocument>("wallets");
     this.vaultFiles = database.collection<VaultFileDocument>("vault_files");
+
+    // Check and migrate the old index
+    const indexes = await this.vaultFiles.indexes();
+
+    const oldIndex = indexes.find(
+      (index) =>
+        index.name === "chainId_1_contractAddress_1_vaultId_1" &&
+        !index.partialFilterExpression
+    );
+
+    if (oldIndex) {
+      await this.vaultFiles.dropIndex(oldIndex.name!);
+    }
+
     await Promise.all([
-      this.wallets.createIndex({ address: 1 }, { unique: true }),
+      this.wallets.createIndex(
+        { address: 1 },
+        { unique: true }
+      ),
+
       this.vaultFiles.createIndex(
         { chainId: 1, contractAddress: 1, vaultId: 1 },
-        { unique: true, partialFilterExpression: { vaultId: { $type: "string" } } },
+        {
+          unique: true,
+          name: "unique_vault_string_id",
+          partialFilterExpression: {
+            vaultId: { $type: "string" },
+          },
+        }
       ),
-      this.vaultFiles.createIndex({ ownerAddress: 1, updatedAt: -1 }),
-      this.vaultFiles.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
+
+      this.vaultFiles.createIndex({
+        ownerAddress: 1,
+        updatedAt: -1,
+      }),
+
+      this.vaultFiles.createIndex(
+        { expiresAt: 1 },
+        { expireAfterSeconds: 0 }
+      ),
     ]);
   }
+
 
   async close(): Promise<void> {
     await this.client.close();
