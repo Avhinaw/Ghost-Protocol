@@ -44,8 +44,42 @@ export class BlockchainService {
     );
   }
 
+  private async withRpcRetry<T>(
+    operation: () => Promise<T>,
+    attempts = 6,
+  ): Promise<T> {
+    let lastError: unknown;
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      try {
+        return await operation();
+      } catch (error) {
+        lastError = error;
+        if (!this.isRpcRateLimit(error) || attempt === attempts - 1) throw error;
+        const delayMs = Math.min(1000 * 2 ** attempt, 20_000);
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+    }
+    throw lastError;
+  }
+
+  private isRpcRateLimit(error: unknown): boolean {
+    if (!(error instanceof Error)) return false;
+    const details = error as Error & { code?: unknown; shortMessage?: unknown };
+    const text = [
+      error.message,
+      typeof details.shortMessage === "string" ? details.shortMessage : "",
+      typeof details.code === "number" ? details.code.toString() : "",
+      typeof details.code === "string" ? details.code : "",
+    ].join(" ").toLowerCase();
+    return text.includes("-32007")
+      || text.includes("25/second")
+      || text.includes("rate limit")
+      || text.includes("too many requests")
+      || text.includes("429");
+  }
+
   async chainId(): Promise<bigint> {
-    return (await this.provider.getNetwork()).chainId;
+    return (await this.withRpcRetry(() => this.provider.getNetwork())).chainId;
   }
 
   async oracleAddress(): Promise<string | null> {
@@ -53,7 +87,19 @@ export class BlockchainService {
   }
 
   async vaultCount(): Promise<bigint> {
-    return BigInt(await this.contract.vaultCount());
+    return BigInt(await this.withRpcRetry(() => this.contract.vaultCount()));
+  }
+
+  async getBlockNumber(): Promise<number> {
+    return this.withRpcRetry(() => this.provider.getBlockNumber());
+  }
+
+  async getCode(address: string): Promise<string> {
+    return this.withRpcRetry(() => this.provider.getCode(address));
+  }
+
+  async getTransactionReceipt(hash: string) {
+    return this.withRpcRetry(() => this.provider.getTransactionReceipt(hash));
   }
 
   async isConfiguredOracle(): Promise<boolean | null> {
@@ -63,11 +109,13 @@ export class BlockchainService {
 
   async getVault(vaultId: bigint | number): Promise<VaultRecord> {
     const id = BigInt(vaultId);
-    const [raw, deadline, expired] = await Promise.all([
-      this.contract.getVault(id),
-      this.contract.heartbeatDeadline(id),
-      this.contract.isExpired(id),
-    ]);
+    const [raw, deadline, expired] = await this.withRpcRetry(
+      () => Promise.all([
+        this.contract.getVault(id),
+        this.contract.heartbeatDeadline(id),
+        this.contract.isExpired(id),
+      ]),
+    );
     const state = Number(raw.state) as VaultState;
 
     return {

@@ -32,8 +32,8 @@ async function logStartupDiagnostics() {
     }
     const [chainId, blockNumber, contractCode] = await Promise.all([
       service.chainId(),
-      service.provider.getBlockNumber(),
-      service.provider.getCode(service.contractAddress),
+      service.getBlockNumber(),
+      service.getCode(service.contractAddress),
     ]);
     console.log("[startup] Chain diagnostics:", JSON.stringify({
       chainId: chainId.toString(),

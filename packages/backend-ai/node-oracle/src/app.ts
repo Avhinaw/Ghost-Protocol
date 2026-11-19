@@ -242,7 +242,11 @@ export function createApp(
     try {
       let contractCodePresent: boolean | null = null;
       if (service.provider) {
-        contractCodePresent = (await service.provider.getCode(service.contractAddress)) !== "0x";
+        contractCodePresent = (
+          await (typeof (service as any).getCode === "function"
+            ? (service as any).getCode(service.contractAddress)
+            : service.provider.getCode(service.contractAddress))
+        ) !== "0x";
       }
       response.json({
         chainId: (await service.chainId()).toString(),
@@ -261,8 +265,12 @@ export function createApp(
       if (service.provider) {
         const [chainId, blockNumber, contractCode] = await Promise.all([
           service.chainId(),
-          service.provider.getBlockNumber(),
-          service.provider.getCode(service.contractAddress),
+          typeof (service as any).getBlockNumber === "function"
+            ? (service as any).getBlockNumber()
+            : service.provider.getBlockNumber(),
+          typeof (service as any).getCode === "function"
+            ? (service as any).getCode(service.contractAddress)
+            : service.provider.getCode(service.contractAddress),
         ]);
         const diagnostics = {
           chainId: chainId.toString(),
@@ -426,11 +434,15 @@ export function createApp(
         response.status(409).json({ error: "On-chain vault does not match this staged upload" });
         return;
       }
-      let receipt = await service.provider.getTransactionReceipt(body.transactionHash);
+      let receipt = await (typeof (service as any).getTransactionReceipt === "function"
+        ? (service as any).getTransactionReceipt(body.transactionHash)
+        : service.provider.getTransactionReceipt(body.transactionHash));
       for (const delayMs of [1000, 2000, 4000]) {
         if (receipt) break;
         await new Promise((resolve) => setTimeout(resolve, delayMs));
-        receipt = await service.provider.getTransactionReceipt(body.transactionHash);
+        receipt = await (typeof (service as any).getTransactionReceipt === "function"
+          ? (service as any).getTransactionReceipt(body.transactionHash)
+          : service.provider.getTransactionReceipt(body.transactionHash));
       }
       const receiptDiagnostics = {
         transactionHash: body.transactionHash,
@@ -758,7 +770,10 @@ export function createApp(
       ? 400
       : error instanceof multer.MulterError
         ? error.code === "LIMIT_FILE_SIZE" ? 413 : 400
+        : /-32007|25\/second|rate limit|too many requests|429/i.test(JSON.stringify(formatError(error)))
+          ? 503
         : 500;
+    if (status === 503) response.setHeader("Retry-After", "5");
     response.status(status).json({ error: message, requestId });
   });
 
