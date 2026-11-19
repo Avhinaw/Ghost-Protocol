@@ -426,9 +426,34 @@ export function createApp(
         response.status(409).json({ error: "On-chain vault does not match this staged upload" });
         return;
       }
-      const receipt = await service.provider.getTransactionReceipt(body.transactionHash);
+      let receipt = await service.provider.getTransactionReceipt(body.transactionHash);
+      for (const delayMs of [1000, 2000, 4000]) {
+        if (receipt) break;
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        receipt = await service.provider.getTransactionReceipt(body.transactionHash);
+      }
+      const receiptDiagnostics = {
+        transactionHash: body.transactionHash,
+        receiptFound: Boolean(receipt),
+        status: receipt?.status ?? null,
+        receiptTo: receipt?.to ?? null,
+        expectedContractAddress: service.contractAddress,
+        blockNumber: receipt?.blockNumber ?? null,
+        logCount: receipt?.logs.length ?? 0,
+      };
+      console.log("[anchor:receipt]", JSON.stringify(receiptDiagnostics));
       if (!receipt || receipt.status !== 1 || receipt.to?.toLowerCase() !== service.contractAddress.toLowerCase()) {
-        response.status(409).json({ error: "Vault creation transaction is not confirmed for this contract" });
+        response.status(409).json({
+          error: "Vault creation transaction is not confirmed for this contract",
+          transactionHash: body.transactionHash,
+          receiptFound: Boolean(receipt),
+          status: receipt?.status ?? null,
+          receiptTo: receipt?.to ?? null,
+          expectedContractAddress: service.contractAddress,
+          blockNumber: receipt?.blockNumber ?? null,
+          logCount: receipt?.logs.length ?? 0,
+          requestId: response.getHeader("x-request-id"),
+        });
         return;
       }
       let matchingCreationEvent = false;
