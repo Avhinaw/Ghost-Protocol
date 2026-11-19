@@ -1,4 +1,5 @@
 import cors from "cors";
+import { randomUUID } from "node:crypto";
 import { keccak256, verifyMessage } from "ethers";
 import express, { type NextFunction, type Request, type Response } from "express";
 import multer from "multer";
@@ -58,6 +59,21 @@ const stagedFileUpload = multer({
 });
 
 class BadRequestError extends Error {}
+
+function formatError(error: unknown) {
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+      code: "code" in error ? (error as Error & { code?: unknown }).code : undefined,
+      shortMessage: "shortMessage" in error
+        ? (error as Error & { shortMessage?: unknown }).shortMessage
+        : undefined,
+    };
+  }
+  return { message: String(error) };
+}
 
 export function stagedUploadSignatureMessage(
   chainId: string,
@@ -182,6 +198,26 @@ export function createApp(
   const app = express();
   app.use(cors({ origin: corsOrigin }));
   app.use(express.json({ limit: "32kb" }));
+  app.use((request, response, next) => {
+    const requestId = randomUUID();
+    const startedAt = Date.now();
+    response.setHeader("x-request-id", requestId);
+    console.log("[request:start]", JSON.stringify({
+      requestId,
+      method: request.method,
+      path: request.originalUrl,
+    }));
+    response.on("finish", () => {
+      console.log("[request:finish]", JSON.stringify({
+        requestId,
+        method: request.method,
+        path: request.originalUrl,
+        statusCode: response.statusCode,
+        durationMs: Date.now() - startedAt,
+      }));
+    });
+    next();
+  });
 
   app.get("/health", async (_request, response, next) => {
     try {
@@ -217,6 +253,20 @@ export function createApp(
 
   app.get("/api/v1/vaults", async (_request, response, next) => {
     try {
+      if (service.provider) {
+        const [chainId, blockNumber, contractCode] = await Promise.all([
+          service.chainId(),
+          service.provider.getBlockNumber(),
+          service.provider.getCode(service.contractAddress),
+        ]);
+        console.log("[vaults:diagnostics]", JSON.stringify({
+          chainId: chainId.toString(),
+          blockNumber,
+          contractAddress: service.contractAddress,
+          contractCodePresent: contractCode !== "0x",
+          contractCodeBytes: contractCode === "0x" ? 0 : (contractCode.length - 2) / 2,
+        }));
+      }
       const vaults = await service.listVaults();
       response.json({ vaults: vaults.map(serializeVault), count: vaults.length });
     } catch (error) {
@@ -656,12 +706,19 @@ export function createApp(
 
   app.use((error: unknown, _request: Request, response: Response, _next: NextFunction) => {
     const message = error instanceof Error ? error.message : "Unexpected error";
+    const requestId = response.getHeader("x-request-id");
+    console.error("[request:error]", JSON.stringify({
+      requestId,
+      method: _request.method,
+      path: _request.originalUrl,
+      error: formatError(error),
+    }));
     const status = error instanceof z.ZodError || error instanceof BadRequestError
       ? 400
       : error instanceof multer.MulterError
         ? error.code === "LIMIT_FILE_SIZE" ? 413 : 400
         : 500;
-    response.status(status).json({ error: message });
+    response.status(status).json({ error: message, requestId });
   });
 
   return app;

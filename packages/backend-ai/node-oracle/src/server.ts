@@ -21,6 +21,54 @@ const service = new BlockchainService(
   config.CONTRACT_ADDRESS,
   config.ORACLE_PRIVATE_KEY,
 );
+
+async function logStartupDiagnostics() {
+  try {
+    let rpcHost = "invalid-url";
+    try {
+      rpcHost = new URL(config.RPC_URL).host;
+    } catch {
+      rpcHost = "invalid-url";
+    }
+    const [chainId, blockNumber, contractCode] = await Promise.all([
+      service.chainId(),
+      service.provider.getBlockNumber(),
+      service.provider.getCode(service.contractAddress),
+    ]);
+    console.log("[startup] Chain diagnostics:", JSON.stringify({
+      chainId: chainId.toString(),
+      blockNumber,
+      rpcHost,
+      contractAddress: config.CONTRACT_ADDRESS,
+      contractCodePresent: contractCode !== "0x",
+      contractCodeBytes: contractCode === "0x" ? 0 : (contractCode.length - 2) / 2,
+    }));
+
+    if (contractCode === "0x") {
+      console.error(
+        "[startup] CONTRACT_ADDRESS has no deployed bytecode on this RPC network:",
+        config.CONTRACT_ADDRESS,
+      );
+    } else {
+      try {
+        console.log("[startup] vaultCount():", (await service.vaultCount()).toString());
+      } catch (error) {
+        console.error("[startup] vaultCount() failed:", formatError(error));
+      }
+    }
+  } catch (error) {
+    console.error("[startup] RPC diagnostics failed:", formatError(error));
+  }
+}
+
+function formatError(error: unknown) {
+  if (error instanceof Error) {
+    return { name: error.name, message: error.message, stack: error.stack };
+  }
+  return { value: String(error) };
+}
+
+void logStartupDiagnostics();
 const aiVerifier = config.AI_VERIFIER_URL ? new HttpAiVerifierClient(config.AI_VERIFIER_URL) : undefined;
 const assessmentRegistry = new AssessmentRegistry(config.AI_ASSESSMENT_TTL_MS);
 const app = createApp(service, config.CORS_ORIGIN, aiVerifier, assessmentRegistry, config.REVIEWER_APPROVAL_TOKEN, vaultStore);
