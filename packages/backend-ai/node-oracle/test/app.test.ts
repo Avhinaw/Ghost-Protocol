@@ -60,6 +60,31 @@ test("backend API returns frontend-ready config and vault JSON", async (t) => {
   assert.equal(body.vaults[0].deadline, "7300");
 });
 
+test("backend returns a clear 503 when CONTRACT_ADDRESS has no contract bytecode", async (t) => {
+  const fakeService = {
+    contractAddress: "0x0000000000000000000000000000000000000002",
+    provider: {
+      getBlockNumber: async () => 123n,
+      getCode: async () => "0x",
+    },
+    chainId: async () => 84532n,
+    oracleAddress: async () => null,
+    isConfiguredOracle: async () => null,
+    listVaults: async () => {
+      throw new Error("listVaults must not be called without contract bytecode");
+    },
+  };
+  const { server, baseUrl } = await listen(createApp(fakeService as any));
+  t.after(() => server.close());
+
+  const response = await fetch(`${baseUrl}/api/v1/vaults`);
+  assert.equal(response.status, 503);
+  const body = await response.json();
+  assert.equal(body.contractCodePresent, false);
+  assert.equal(body.chainId, "84532");
+  assert.match(body.error, /No GhostProtocol contract is deployed/);
+});
+
 test("backend rejects malformed oracle input", async (t) => {
   const fakeService = {
     contractAddress: "0x0000000000000000000000000000000000000002",

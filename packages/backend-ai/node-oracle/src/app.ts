@@ -240,10 +240,15 @@ export function createApp(
 
   app.get("/api/v1/config", async (_request, response, next) => {
     try {
+      let contractCodePresent: boolean | null = null;
+      if (service.provider) {
+        contractCodePresent = (await service.provider.getCode(service.contractAddress)) !== "0x";
+      }
       response.json({
         chainId: (await service.chainId()).toString(),
         contractAddress: service.contractAddress,
         rpcConfigured: true,
+        contractCodePresent,
         vaultStorageConfigured: Boolean(vaultStore),
       });
     } catch (error) {
@@ -259,13 +264,24 @@ export function createApp(
           service.provider.getBlockNumber(),
           service.provider.getCode(service.contractAddress),
         ]);
-        console.log("[vaults:diagnostics]", JSON.stringify({
+        const diagnostics = {
           chainId: chainId.toString(),
-          blockNumber,
+          blockNumber: blockNumber.toString(),
           contractAddress: service.contractAddress,
           contractCodePresent: contractCode !== "0x",
           contractCodeBytes: contractCode === "0x" ? 0 : (contractCode.length - 2) / 2,
-        }));
+        };
+        console.log("[vaults:diagnostics]", JSON.stringify(diagnostics));
+        if (!diagnostics.contractCodePresent) {
+          response.status(503).json({
+            error: "No GhostProtocol contract is deployed at CONTRACT_ADDRESS on this RPC network",
+            chainId: diagnostics.chainId,
+            contractAddress: diagnostics.contractAddress,
+            contractCodePresent: false,
+            requestId: response.getHeader("x-request-id"),
+          });
+          return;
+        }
       }
       const vaults = await service.listVaults();
       response.json({ vaults: vaults.map(serializeVault), count: vaults.length });
