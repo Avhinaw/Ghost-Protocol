@@ -125,7 +125,19 @@ export async function createVaultOnChain(
   address: string,
   args: { payloadHash: string; payloadCid: string; keyCommitment: string; checkInInterval: number; gracePeriod: number },
 ): Promise<{ hash: string; vaultId: string }> {
+  if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
+    throw new Error(`Invalid contract address returned by backend: ${address || "(empty)"}`);
+  }
+  const verificationProvider = await walletProvider();
+  const contractCode = await verificationProvider.getCode(address);
+  if (contractCode === "0x") {
+    throw new Error(`No contract bytecode exists at ${address}. Deploy GhostProtocol on this network first.`);
+  }
   const contract = await contractFor(address);
+  console.log("[ghost:createVault]", JSON.stringify({
+    contractAddress: address,
+    chainId: EXPECTED_CHAIN_ID,
+  }));
   const tx = await contract.createVault(
     args.payloadHash,
     args.payloadCid,
@@ -135,6 +147,11 @@ export async function createVaultOnChain(
   );
   const receipt = await tx.wait();
   if (!receipt || receipt.status !== 1) throw new Error("Vault creation transaction failed.");
+  console.log("[ghost:createVault:receipt]", JSON.stringify({
+    transactionHash: receipt.hash,
+    receiptTo: receipt.to,
+    expectedContractAddress: address,
+  }));
   let vaultId: string | undefined;
   for (const log of receipt.logs as readonly Log[]) {
     try {

@@ -55,6 +55,10 @@ export default function CreateVault() {
     if (!file) { toast.error("Choose a file before opening the vault."); return; }
     if (file.size > 8 * 1024 * 1024) { toast.error("Choose a file no larger than 8 MB."); return; }
     if (!config?.contractAddress) { toast.error("The backend has not returned a contract address yet."); return; }
+    if (!/^0x[a-fA-F0-9]{40}$/.test(config.contractAddress)) {
+      toast.error(`The backend returned an invalid contract address: ${config.contractAddress}`);
+      return;
+    }
     let normalizedPassphrase: string;
     try {
       normalizedPassphrase = normalizePassphrase(passphrase);
