@@ -10,6 +10,7 @@ import {
   fetchJson,
   releaseAndDownloadVaultFile,
   sendHeartbeatOnChain,
+  triggerExpiredVaultOnChain,
   type ContractConfig,
   type Vault,
 } from "../lib/ghost";
@@ -27,6 +28,7 @@ export default function VaultDetail() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [passphrase, setPassphrase] = useState("");
+  const [now, setNow] = useState(Date.now());
 
   async function refresh() {
     setLoading(true);
@@ -35,6 +37,16 @@ export default function VaultDetail() {
     finally { setLoading(false); }
   }
   useEffect(() => { void refresh(); }, [id]);
+  useEffect(() => {
+    if (!vault) return;
+    const delay = Number(vault.deadline) * 1000 - Date.now();
+    if (delay <= 0) {
+      setNow(Date.now());
+      return;
+    }
+    const timer = window.setTimeout(() => setNow(Date.now()), delay);
+    return () => window.clearTimeout(timer);
+  }, [vault?.deadline]);
 
   async function action(kind: "heartbeat" | "cancel") {
     if (!config?.contractAddress) { toast.error("No contract address available"); return; }
@@ -55,6 +67,9 @@ export default function VaultDetail() {
     }
     setBusy(true);
     try {
+      if (vault.stateName === "Active" && deadlinePassed) {
+        await triggerExpiredVaultOnChain(config.contractAddress, id, vault.owner);
+      }
       if (vault.stateName === "Released") {
         const fileName = await downloadReleasedVaultFile(config.contractAddress, id, vault.payloadHash, passphrase);
         toast.success(`Verified document downloaded: ${fileName}`);
@@ -66,6 +81,7 @@ export default function VaultDetail() {
       await refresh();
     } catch (cause) {
       toast.error(cause instanceof Error ? cause.message : "Proof release or document download failed");
+      await refresh();
     } finally {
       setBusy(false);
     }
@@ -75,14 +91,17 @@ export default function VaultDetail() {
   if (error || !vault) return <div className="empty-state"><h3>Vault record unavailable.</h3><p>{error ?? "No vault was returned for this identifier."}</p><Link href="/"><Button className="button-quiet">Back to register</Button></Link></div>;
   const isActive = vault.stateName === "Active";
   const canRelease = vault.stateName === "Triggered" || vault.stateName === "Released";
+  const deadlinePassed = vault.expired || Number(vault.deadline) * 1000 <= now;
+  const canTriggerAndRelease = isActive && deadlinePassed;
+  const canHeartbeat = isActive && !deadlinePassed;
   return <div>
     <Link href="/" className="inline-flex items-center gap-2 muted text-sm mb-8"><ArrowLeft size={15} /> Back to operations</Link>
     <div className="detail-layout" data-scroll-reveal>
       <section>
         <div className="detail-hero"><div className="eyebrow">Vault / {id.padStart(4, "0")}</div><h1 className="detail-title">Custody record<br /><em className={vault.stateName === "Active" ? "mineral-italic" : vault.stateName === "Triggered" ? "copper" : ""}>{vault.stateName.toLowerCase()}</em>.</h1><p className="detail-subtitle">A public state record for an encrypted payload. The chain can verify the commitment; it cannot read the plaintext.</p></div>
-        {canRelease && <div className="field mt-6"><label htmlFor="release-passphrase">Recipient passphrase</label><input id="release-passphrase" type="password" autoComplete="current-password" maxLength={1024} value={passphrase} onChange={(event) => setPassphrase(event.target.value)} /><small className="muted">Used only in this browser to decrypt after the wallet and proof checks pass. It is never sent to the server.</small></div>}
-        <div className="detail-actions">{isActive && <Button className="button-primary" disabled={busy} onClick={() => void action("heartbeat")}>{busy ? <Loader2 size={16} className="animate-spin" /> : <Radio size={16} />} Send heartbeat</Button>}{isActive && <Button variant="outline" className="button-quiet" disabled={busy} onClick={() => void action("cancel")}><X size={16} /> Cancel vault</Button>}{canRelease && <Button className="button-primary" disabled={busy || passphrase.length === 0} onClick={() => void releaseOrDownload()}>{busy ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />} {vault.stateName === "Released" ? "Download verified document" : "Verify proof, release & download"}</Button>}</div>
-        <div className="notice mt-6"><span className="status-dot green" /><span><strong>{canRelease ? "Proof-gated document access." : "Owner action required."}</strong> {canRelease ? "The backend verifies the stored bytes against the on-chain proof before release and again before download." : isActive ? "Send the next heartbeat before the deadline to keep this record active." : `This record is ${vault.stateName.toLowerCase()}; owner heartbeat actions are closed.`}</span></div>
+        {(canRelease || canTriggerAndRelease) && <div className="field mt-6"><label htmlFor="release-passphrase">Recipient passphrase</label><input id="release-passphrase" type="password" autoComplete="current-password" maxLength={1024} value={passphrase} onChange={(event) => setPassphrase(event.target.value)} /><small className="muted">Used only in this browser to decrypt after the wallet and proof checks pass. It is never sent to the server.</small></div>}
+        <div className="detail-actions">{canHeartbeat && <Button className="button-primary" disabled={busy} onClick={() => void action("heartbeat")}>{busy ? <Loader2 size={16} className="animate-spin" /> : <Radio size={16} />} Send heartbeat</Button>}{isActive && <Button variant="outline" className="button-quiet" disabled={busy} onClick={() => void action("cancel")}><X size={16} /> Cancel vault</Button>}{(canRelease || canTriggerAndRelease) && <Button className="button-primary" disabled={busy || passphrase.length === 0} onClick={() => void releaseOrDownload()}>{busy ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />} {vault.stateName === "Released" ? "Download verified document" : canTriggerAndRelease ? "Trigger timeout, release & download" : "Verify proof, release & download"}</Button>}</div>
+        <div className="notice mt-6"><span className="status-dot green" /><span><strong>{canRelease || canTriggerAndRelease ? "Proof-gated document access." : "Owner action required."}</strong> {canRelease ? "The backend verifies the stored bytes against the on-chain proof before release and again before download." : canTriggerAndRelease ? "The deadline has passed. The owner can trigger the timeout, then verify, release, and download the encrypted record in one flow." : isActive ? "Send the next heartbeat before the deadline to keep this record active." : `This record is ${vault.stateName.toLowerCase()}; owner heartbeat actions are closed.`}</span></div>
       </section>
       <aside className="signal-panel"><div className="signal-ring"><Check size={22} className="relative z-10 text-[#A8C1AF]" /></div><span className="signal-label">SIGNAL / {vault.stateName.toUpperCase()}</span></aside>
     </div>

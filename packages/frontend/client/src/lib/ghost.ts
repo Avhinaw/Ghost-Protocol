@@ -15,6 +15,7 @@ export const GHOST_PROTOCOL_ABI = [
   "function createVault(bytes32 payloadHash, string payloadCid, bytes32 keyCommitment, uint64 checkInInterval, uint64 gracePeriod) returns (uint256 vaultId)",
   "function sendHeartbeat(uint256 vaultId)",
   "function cancelVault(uint256 vaultId)",
+  "function checkAndTriggerExpired(uint256 vaultId)",
   "function releaseVaultWithProof(uint256 vaultId, bytes32 proofHash)",
   "event VaultCreated(uint256 indexed vaultId, address indexed owner, bytes32 indexed payloadHash, string payloadCid, uint64 checkInInterval, uint64 gracePeriod)",
   "function vaultCount() view returns (uint256)",
@@ -187,6 +188,20 @@ export async function sendHeartbeatOnChain(address: string, vaultId: string) {
 export async function cancelVaultOnChain(address: string, vaultId: string) {
   const contract = await contractFor(address);
   return (await contract.cancelVault(BigInt(vaultId))).wait();
+}
+
+export async function triggerExpiredVaultOnChain(address: string, vaultId: string, ownerAddress: string) {
+  const provider = await walletProvider();
+  const signer = await provider.getSigner();
+  const signerAddress = await signer.getAddress();
+  if (signerAddress.toLowerCase() !== ownerAddress.toLowerCase()) {
+    throw new Error("Connect the vault owner wallet to trigger and release this record.");
+  }
+  const contract = new Contract(address, GHOST_PROTOCOL_ABI, signer);
+  const transaction = await contract.checkAndTriggerExpired(BigInt(vaultId));
+  const receipt = await transaction.wait();
+  if (!receipt || receipt.status !== 1) throw new Error("Expired-vault trigger transaction failed.");
+  return receipt;
 }
 
 export async function releaseVaultWithProofOnChain(address: string, vaultId: string, proofHash: string) {
