@@ -16,7 +16,7 @@ function formatBytes(bytes: number) {
 
 export default function CreateVault() {
   const [, setLocation] = useLocation();
-  const { config } = useGhostData();
+  const { config } = useGhostData({ includeVaults: false });
   const [file, setFile] = useState<File | null>(null);
   const [passphrase, setPassphrase] = useState("");
   const [passphraseConfirmation, setPassphraseConfirmation] = useState("");
