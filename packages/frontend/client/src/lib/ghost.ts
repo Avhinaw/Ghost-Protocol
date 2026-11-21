@@ -151,6 +151,11 @@ export async function createVaultOnChain(
     args.checkInInterval,
     args.gracePeriod,
   );
+  if (tx.to && tx.to.toLowerCase() !== address.toLowerCase()) {
+    throw new Error(
+      `Wallet transaction destination mismatch: attempted ${tx.to}, expected ${address}.`,
+    );
+  }
   const receipt = await tx.wait();
   if (!receipt || receipt.status !== 1) throw new Error("Vault creation transaction failed.");
   console.log("[ghost:createVault:receipt]", JSON.stringify({
@@ -158,6 +163,11 @@ export async function createVaultOnChain(
     receiptTo: receipt.to,
     expectedContractAddress: address,
   }));
+  if (receipt.to?.toLowerCase() !== address.toLowerCase()) {
+    throw new Error(
+      `Mined transaction reached ${receipt.to ?? "(unknown contract)"}, but Ghost Protocol expected ${address}. Cancel this deployment and confirm the Base Sepolia contract target.`,
+    );
+  }
   let vaultId: string | undefined;
   for (const log of receipt.logs as readonly Log[]) {
     try {
