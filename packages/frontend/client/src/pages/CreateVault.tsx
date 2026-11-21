@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { anchorStagedVaultFile, createVaultOnChain, prepareEncryptedEvidence, stageEncryptedVaultFile } from "../lib/ghost";
 import { useGhostData } from "../hooks/useGhostData";
 import { normalizePassphrase } from "../lib/vault-crypto";
-import { FALLBACK_CONTRACT } from "../lib/ghost";
+import { BASE_SEPOLIA_CONTRACT_ADDRESS } from "../lib/ghost";
 
 function formatBytes(bytes: number) {
   return bytes < 1024 * 1024 ? `${(bytes / 1024).toFixed(1)} KB` : `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
@@ -56,8 +56,8 @@ export default function CreateVault() {
     if (!file) { toast.error("Choose a file before opening the vault."); return; }
     if (file.size > 8 * 1024 * 1024) { toast.error("Choose a file no larger than 8 MB."); return; }
     if (!config?.contractAddress) { toast.error("The backend has not returned a contract address yet."); return; }
-    if (!/^0x[a-fA-F0-9]{40}$/.test(config.contractAddress)) {
-      toast.error(`The backend returned an invalid contract address: ${config.contractAddress}`);
+    if (config.contractAddress.toLowerCase() !== BASE_SEPOLIA_CONTRACT_ADDRESS.toLowerCase()) {
+      toast.error(`Contract mismatch: backend returned ${config.contractAddress}; expected ${BASE_SEPOLIA_CONTRACT_ADDRESS}`);
       return;
     }
     let normalizedPassphrase: string;
@@ -76,8 +76,8 @@ export default function CreateVault() {
       const evidence = await prepareEncryptedEvidence(file, normalizedPassphrase);
       setPassphrase("");
       setPassphraseConfirmation("");
-      await stageEncryptedVaultFile({ contractAddress: config.contractAddress, evidence });
-      const result = await createVaultOnChain(config.contractAddress, {
+      await stageEncryptedVaultFile({ contractAddress: BASE_SEPOLIA_CONTRACT_ADDRESS, evidence });
+      const result = await createVaultOnChain(BASE_SEPOLIA_CONTRACT_ADDRESS, {
         payloadHash: evidence.proofHash,
         payloadCid: `mongo://${evidence.uploadId}`,
         keyCommitment: evidence.keyCommitment,
@@ -89,7 +89,7 @@ export default function CreateVault() {
         uploadId: evidence.uploadId,
         proofHash: evidence.proofHash,
         transactionHash: result.hash,
-        contractAddress: config.contractAddress,
+        contractAddress: BASE_SEPOLIA_CONTRACT_ADDRESS,
       };
       setPendingUpload(upload);
       try {

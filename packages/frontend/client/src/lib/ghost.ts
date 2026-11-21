@@ -9,7 +9,8 @@ import {
 } from "./vault-crypto";
 
 export const BACKEND_URL = (import.meta.env.VITE_BACKEND_URL || "https://ghost-protocol-4dcu.onrender.com").replace(/\/$/, "");
-export const FALLBACK_CONTRACT = import.meta.env.VITE_CONTRACT_ADDRESS || "";
+export const BASE_SEPOLIA_CONTRACT_ADDRESS = "0xf4d8f1092b07422DD4F3BFC98882E18be51185AF";
+export const FALLBACK_CONTRACT = BASE_SEPOLIA_CONTRACT_ADDRESS;
 export const EXPECTED_CHAIN_ID = Number(import.meta.env.VITE_CHAIN_ID || 84532);
 export const GHOST_PROTOCOL_ABI = [
   "function createVault(bytes32 payloadHash, string payloadCid, bytes32 keyCommitment, uint64 checkInInterval, uint64 gracePeriod) returns (uint256 vaultId)",
@@ -126,22 +127,20 @@ export async function createVaultOnChain(
   address: string,
   args: { payloadHash: string; payloadCid: string; keyCommitment: string; checkInInterval: number; gracePeriod: number },
 ): Promise<{ hash: string; vaultId: string }> {
-  if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
-    throw new Error(`Invalid contract address returned by backend: ${address || "(empty)"}`);
-  }
-  if (FALLBACK_CONTRACT && address.toLowerCase() !== FALLBACK_CONTRACT.toLowerCase()) {
+  if (address.toLowerCase() !== BASE_SEPOLIA_CONTRACT_ADDRESS.toLowerCase()) {
     throw new Error(
-      `Contract configuration mismatch. Frontend expects ${FALLBACK_CONTRACT}, backend returned ${address}. Reload the latest deployment.`,
+      `Contract configuration mismatch. Frontend expects ${BASE_SEPOLIA_CONTRACT_ADDRESS}, backend returned ${address}.`,
     );
   }
+  const targetAddress = BASE_SEPOLIA_CONTRACT_ADDRESS;
   const verificationProvider = await walletProvider();
-  const contractCode = await verificationProvider.getCode(address);
+  const contractCode = await verificationProvider.getCode(targetAddress);
   if (contractCode === "0x") {
-    throw new Error(`No contract bytecode exists at ${address}. Deploy GhostProtocol on this network first.`);
+    throw new Error(`No contract bytecode exists at ${targetAddress}. Deploy GhostProtocol on this network first.`);
   }
-  const contract = await contractFor(address);
+  const contract = await contractFor(targetAddress);
   console.log("[ghost:createVault]", JSON.stringify({
-    contractAddress: address,
+    contractAddress: targetAddress,
     chainId: EXPECTED_CHAIN_ID,
   }));
   const tx = await contract.createVault(

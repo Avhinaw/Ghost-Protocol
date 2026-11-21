@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Link, useRoute } from "wouter";
 import { toast } from "sonner";
 import {
+  BASE_SEPOLIA_CONTRACT_ADDRESS,
   cancelVaultOnChain,
   downloadReleasedVaultFile,
   fetchJson,
@@ -51,7 +52,7 @@ export default function VaultDetail() {
   async function action(kind: "heartbeat" | "cancel") {
     if (!config?.contractAddress) { toast.error("No contract address available"); return; }
     setBusy(true);
-    try { if (kind === "heartbeat") await sendHeartbeatOnChain(config.contractAddress, id); else if (window.confirm("Cancel this active vault? This cannot be undone.")) await cancelVaultOnChain(config.contractAddress, id); toast.success(kind === "heartbeat" ? "Heartbeat recorded" : "Vault cancelled"); await refresh(); }
+    try { if (kind === "heartbeat") await sendHeartbeatOnChain(BASE_SEPOLIA_CONTRACT_ADDRESS, id); else if (window.confirm("Cancel this active vault? This cannot be undone.")) await cancelVaultOnChain(BASE_SEPOLIA_CONTRACT_ADDRESS, id); toast.success(kind === "heartbeat" ? "Heartbeat recorded" : "Vault cancelled"); await refresh(); }
     catch (cause) { toast.error(cause instanceof Error ? cause.message : "Transaction failed"); }
     finally { setBusy(false); }
   }
@@ -68,13 +69,13 @@ export default function VaultDetail() {
     setBusy(true);
     try {
       if (vault.stateName === "Active" && deadlinePassed) {
-        await triggerExpiredVaultOnChain(config.contractAddress, id, vault.owner);
+        await triggerExpiredVaultOnChain(BASE_SEPOLIA_CONTRACT_ADDRESS, id, vault.owner);
       }
       if (vault.stateName === "Released") {
-        const fileName = await downloadReleasedVaultFile(config.contractAddress, id, vault.payloadHash, passphrase);
+        const fileName = await downloadReleasedVaultFile(BASE_SEPOLIA_CONTRACT_ADDRESS, id, vault.payloadHash, passphrase);
         toast.success(`Verified document downloaded: ${fileName}`);
       } else {
-        const result = await releaseAndDownloadVaultFile(config.contractAddress, id, vault.payloadHash, passphrase);
+        const result = await releaseAndDownloadVaultFile(BASE_SEPOLIA_CONTRACT_ADDRESS, id, vault.payloadHash, passphrase);
         toast.success(`Proof released on-chain; verified document downloaded: ${result.fileName}`);
       }
       setPassphrase("");

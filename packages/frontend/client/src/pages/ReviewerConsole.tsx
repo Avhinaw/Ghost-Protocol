@@ -5,7 +5,7 @@ import { AlertTriangle, CheckCircle2, FileScan, KeyRound, Loader2, LockKeyhole, 
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { trpc } from "../lib/trpc";
-import { FALLBACK_CONTRACT, releaseVaultWithProofOnChain } from "../lib/ghost";
+import { BASE_SEPOLIA_CONTRACT_ADDRESS, releaseVaultWithProofOnChain } from "../lib/ghost";
 
 type Assessment = {
   assessment_hash: string;
@@ -38,7 +38,7 @@ export default function ReviewerConsole() {
   const [rejected, setRejected] = useState(false);
   const [proofHash, setProofHash] = useState("");
   const [releaseHash, setReleaseHash] = useState("");
-  const [contractAddress, setContractAddress] = useState(FALLBACK_CONTRACT);
+  const [contractAddress, setContractAddress] = useState(BASE_SEPOLIA_CONTRACT_ADDRESS);
   const status = trpc.reviewer.status.useQuery(undefined, { enabled: isAuthenticated });
   const localReviewerSignIn = trpc.auth.localReviewerSignIn.useMutation();
   const assess = trpc.reviewer.assessDocument.useMutation();
@@ -49,7 +49,9 @@ export default function ReviewerConsole() {
   const confidence = useMemo(() => assessment ? Math.round(assessment.confidence_score * 100) : 0, [assessment]);
 
   useEffect(() => {
-    if (status.data?.contractAddress) setContractAddress((current: string) => current || status.data.contractAddress);
+    if (status.data?.contractAddress) {
+      setContractAddress(BASE_SEPOLIA_CONTRACT_ADDRESS);
+    }
   }, [status.data?.contractAddress]);
 
   async function uploadDocument() {
@@ -100,7 +102,9 @@ export default function ReviewerConsole() {
   }
 
   async function releaseVault() {
-    if (!contractAddress) return toast.error("Enter the local contract address.");
+    if (contractAddress.toLowerCase() !== BASE_SEPOLIA_CONTRACT_ADDRESS.toLowerCase()) {
+      return toast.error(`Contract mismatch. Expected ${BASE_SEPOLIA_CONTRACT_ADDRESS}.`);
+    }
     if (!/^0x[a-fA-F0-9]{64}$/.test(proofHash)) return toast.error("Enter the committed 32-byte proof hash.");
     try {
       const receipt = await releaseVaultWithProofOnChain(contractAddress, vaultId, proofHash);
