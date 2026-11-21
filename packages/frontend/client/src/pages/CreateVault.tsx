@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { anchorStagedVaultFile, createVaultOnChain, prepareEncryptedEvidence, stageEncryptedVaultFile } from "../lib/ghost";
 import { useGhostData } from "../hooks/useGhostData";
 import { normalizePassphrase } from "../lib/vault-crypto";
+import { FALLBACK_CONTRACT } from "../lib/ghost";
 
 function formatBytes(bytes: number) {
   return bytes < 1024 * 1024 ? `${(bytes / 1024).toFixed(1)} KB` : `${(bytes / (1024 * 1024)).toFixed(2)} MB`;

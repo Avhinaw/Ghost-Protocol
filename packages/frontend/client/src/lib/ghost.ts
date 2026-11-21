@@ -129,6 +129,11 @@ export async function createVaultOnChain(
   if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
     throw new Error(`Invalid contract address returned by backend: ${address || "(empty)"}`);
   }
+  if (FALLBACK_CONTRACT && address.toLowerCase() !== FALLBACK_CONTRACT.toLowerCase()) {
+    throw new Error(
+      `Contract configuration mismatch. Frontend expects ${FALLBACK_CONTRACT}, backend returned ${address}. Reload the latest deployment.`,
+    );
+  }
   const verificationProvider = await walletProvider();
   const contractCode = await verificationProvider.getCode(address);
   if (contractCode === "0x") {
