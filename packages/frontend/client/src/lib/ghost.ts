@@ -143,18 +143,24 @@ export async function createVaultOnChain(
     contractAddress: targetAddress,
     chainId: EXPECTED_CHAIN_ID,
   }));
-  const tx = await contract.createVault(
+  const signer = await (await walletProvider()).getSigner();
+  const txRequest = await contract.createVault.populateTransaction(
     args.payloadHash,
     args.payloadCid,
     args.keyCommitment,
     args.checkInInterval,
     args.gracePeriod,
   );
-  if (tx.to && tx.to.toLowerCase() !== address.toLowerCase()) {
+  if (txRequest.to?.toLowerCase() !== targetAddress.toLowerCase()) {
     throw new Error(
-      `Wallet transaction destination mismatch: attempted ${tx.to}, expected ${address}.`,
+      `Wallet transaction destination mismatch before signing: attempted ${txRequest.to ?? "(unknown)"}, expected ${targetAddress}.`,
     );
   }
+  console.log("[ghost:createVault:request]", JSON.stringify({
+    transactionTo: txRequest.to,
+    expectedContractAddress: targetAddress,
+  }));
+  const tx = await signer.sendTransaction(txRequest);
   const receipt = await tx.wait();
   if (!receipt || receipt.status !== 1) throw new Error("Vault creation transaction failed.");
   console.log("[ghost:createVault:receipt]", JSON.stringify({
