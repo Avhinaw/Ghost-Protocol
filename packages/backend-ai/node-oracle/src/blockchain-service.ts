@@ -139,12 +139,42 @@ export class BlockchainService {
   }
 
   async listVaults(): Promise<VaultRecord[]> {
-    const total = Number(await this.vaultCount());
     const vaults: VaultRecord[] = [];
+    const total = Number(await this.vaultCount());
     for (let id = 1; id <= total; id += 1) {
-      vaults.push(await this.getVault(id));
+      try {
+        vaults.push(await this.getVault(id));
+      } catch (error) {
+        if (this.isMissingVaultError(error)) {
+          console.log("[vaults] Stopped at nonexistent vault:", JSON.stringify({
+            vaultId: id,
+            contractVaultCount: total,
+          }));
+          break;
+        }
+        throw error;
+      }
     }
     return vaults;
+  }
+
+  private isMissingVaultError(error: unknown): boolean {
+    if (!(error instanceof Error)) return false;
+    const details = error as Error & {
+      code?: unknown;
+      shortMessage?: unknown;
+      reason?: unknown;
+      revert?: unknown;
+    };
+    const text = [
+      error.message,
+      typeof details.shortMessage === "string" ? details.shortMessage : "",
+      typeof details.reason === "string" ? details.reason : "",
+    ].join(" ").toLowerCase();
+    return details.code === "CALL_EXCEPTION"
+      && (text.includes("missing revert data")
+        || text.includes("vaultnotfound")
+        || details.revert === null);
   }
 
   async scanExpiredVaults(): Promise<VaultRecord[]> {
