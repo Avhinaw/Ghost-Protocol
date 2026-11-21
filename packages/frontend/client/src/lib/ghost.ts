@@ -1,4 +1,4 @@
-import { BrowserProvider, Contract, type Log } from "ethers";
+import { BrowserProvider, Contract, Interface, type Log } from "ethers";
 import {
   base64ToUint8Array,
   decryptReleasedVaultFile,
@@ -138,19 +138,23 @@ export async function createVaultOnChain(
   if (contractCode === "0x") {
     throw new Error(`No contract bytecode exists at ${targetAddress}. Deploy GhostProtocol on this network first.`);
   }
-  const contract = await contractFor(targetAddress);
   console.log("[ghost:createVault]", JSON.stringify({
     contractAddress: targetAddress,
     chainId: EXPECTED_CHAIN_ID,
   }));
   const signer = await (await walletProvider()).getSigner();
-  const txRequest = await contract.createVault.populateTransaction(
-    args.payloadHash,
-    args.payloadCid,
-    args.keyCommitment,
-    args.checkInInterval,
-    args.gracePeriod,
-  );
+  const iface = new Interface(GHOST_PROTOCOL_ABI);
+  const txRequest = {
+    to: targetAddress,
+    chainId: EXPECTED_CHAIN_ID,
+    data: iface.encodeFunctionData("createVault", [
+      args.payloadHash,
+      args.payloadCid,
+      args.keyCommitment,
+      args.checkInInterval,
+      args.gracePeriod,
+    ]),
+  };
   if (txRequest.to?.toLowerCase() !== targetAddress.toLowerCase()) {
     throw new Error(
       `Wallet transaction destination mismatch before signing: attempted ${txRequest.to ?? "(unknown)"}, expected ${targetAddress}.`,
@@ -176,7 +180,7 @@ export async function createVaultOnChain(
   let vaultId: string | undefined;
   for (const log of receipt.logs as readonly Log[]) {
     try {
-      const event = contract.interface.parseLog(log);
+      const event = iface.parseLog(log);
       if (event?.name === "VaultCreated") {
         vaultId = BigInt(event.args.vaultId).toString();
         break;
